@@ -6,6 +6,7 @@ export function initSchema() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS sourcing_scans (
       id TEXT PRIMARY KEY,
+      corpusId TEXT,
       sector TEXT NOT NULL,
       workflowCategory TEXT NOT NULL,
       thesisPrompt TEXT NOT NULL,
@@ -13,6 +14,22 @@ export function initSchema() {
       rawInput TEXT,
       createdAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS corpus_companies (
+      id TEXT PRIMARY KEY,
+      corpusId TEXT NOT NULL,
+      name TEXT NOT NULL,
+      sector TEXT NOT NULL,
+      workflowCategory TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      geography TEXT NOT NULL,
+      website TEXT,
+      description TEXT NOT NULL,
+      profileJson TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_corpus_companies_corpus ON corpus_companies(corpusId);
+    CREATE INDEX IF NOT EXISTS idx_corpus_companies_sector ON corpus_companies(sector);
 
     CREATE TABLE IF NOT EXISTS companies (
       id TEXT PRIMARY KEY,
@@ -24,10 +41,13 @@ export function initSchema() {
       website TEXT,
       description TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'New' CHECK(status IN ('New','Reviewing','Priority','Follow-Up','Pass')),
-      sourceType TEXT NOT NULL CHECK(sourceType IN ('seed','ai-extracted')),
+      sourceType TEXT NOT NULL CHECK(sourceType IN ('seed','ai-extracted','corpus')),
       scanId TEXT REFERENCES sourcing_scans(id),
+      corpusCompanyId TEXT REFERENCES corpus_companies(id),
       createdAt TEXT NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_companies_corpus_company ON companies(corpusCompanyId);
 
     CREATE TABLE IF NOT EXISTS ai_profiles (
       id TEXT PRIMARY KEY,

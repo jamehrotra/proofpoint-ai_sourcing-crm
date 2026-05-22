@@ -4,13 +4,12 @@ import { ScanForm } from '@/components/scan/ScanForm';
 export default function ScanPage() {
   return (
     <PageShell
-      title="New Sourcing Scan"
-      description="Configure a scan to surface and score Vertical AI companies against your thesis."
+      eyebrow="Sourcing · New Scan"
+      title={<>Configure a <em className="font-light italic text-[#6b1f2a]">sourcing scan</em></>}
+      description="Surface and score Vertical AI companies against your investment thesis. AI runs against our curated corpus, or extracts a structured profile from any raw text you paste."
     >
-      <div className="max-w-2xl">
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <ScanForm />
-        </div>
+      <div className="max-w-4xl bg-white border border-[#e8e2d4] p-10">
+        <ScanForm />
       </div>
     </PageShell>
   );

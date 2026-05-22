@@ -1,6 +1,11 @@
 import { extractProfile } from '../ai/extract';
 import type { SourceConnector, SourcingQuery, RawSourceResult } from './types';
 
+/**
+ * ManualInputConnector — accepts pasted raw text. The scan API typically
+ * calls extractProfile directly to keep the flow simple, but this connector
+ * is retained as a reference implementation of the SourceConnector contract.
+ */
 export class ManualInputConnector implements SourceConnector {
   name = 'ManualInputConnector';
 
@@ -20,7 +25,16 @@ export class ManualInputConnector implements SourceConnector {
         stage: profile.stageEstimate,
         geography: 'United States',
         website: null,
-        existingCompanyId: undefined,
+        prewrittenProfile: {
+          problem: profile.problem,
+          customer: profile.customer,
+          aiUseCase: profile.aiUseCase,
+          dataMoatPotential: profile.dataMoatPotential,
+          businessModel: profile.businessModel ?? '',
+          fundingStage: profile.fundingStage ?? profile.stageEstimate,
+          competitiveLandscape: profile.competitiveLandscape ?? '',
+          risks: profile.risks,
+        },
       },
     ];
   }

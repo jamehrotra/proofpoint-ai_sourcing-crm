@@ -12,6 +12,7 @@ export interface CompanyRow {
   status: string;
   sourceType: string;
   scanId: string | null;
+  corpusCompanyId: string | null;
   createdAt: string;
 }
 
@@ -26,6 +27,7 @@ export interface CompanyFilters {
   sector?: string;
   status?: string;
   recommendation?: string;
+  view?: 'pipeline' | 'passed' | 'all';
   sort?: string;
   dir?: string;
 }
@@ -44,6 +46,13 @@ export function getCompanies(filters: CompanyFilters = {}): CompanyWithFit[] {
     WHERE 1=1
   `;
   const params: unknown[] = [];
+
+  if (filters.view === 'passed') {
+    query += ` AND tfa.recommendation = 'Pass' AND c.status NOT IN ('Reviewing','Priority','Follow-Up')`;
+  } else if (filters.view === 'pipeline') {
+    query += ` AND (tfa.recommendation IN ('Priority','Watch') OR c.status IN ('Reviewing','Priority','Follow-Up')
+              OR tfa.recommendation IS NULL)`;
+  }
 
   if (filters.search) {
     query += ` AND (c.name LIKE ? OR c.description LIKE ? OR c.sector LIKE ? OR c.workflowCategory LIKE ?)`;
@@ -85,15 +94,42 @@ export function getCompanyById(id: string): CompanyRow | undefined {
   return db.prepare('SELECT * FROM companies WHERE id = ?').get(id) as CompanyRow | undefined;
 }
 
-export function insertCompany(company: Omit<CompanyRow, 'status'> & { status: string }): void {
+export function getCompanyByCorpusCompanyId(corpusCompanyId: string): CompanyRow | undefined {
+  const db = getDb();
+  return db.prepare('SELECT * FROM companies WHERE corpusCompanyId = ?').get(corpusCompanyId) as CompanyRow | undefined;
+}
+
+export function insertCompany(company: CompanyRow): void {
   const db = getDb();
   db.prepare(`
-    INSERT INTO companies (id, name, sector, workflowCategory, stage, geography, website, description, status, sourceType, scanId, createdAt)
-    VALUES (@id, @name, @sector, @workflowCategory, @stage, @geography, @website, @description, @status, @sourceType, @scanId, @createdAt)
+    INSERT INTO companies (id, name, sector, workflowCategory, stage, geography, website, description, status, sourceType, scanId, corpusCompanyId, createdAt)
+    VALUES (@id, @name, @sector, @workflowCategory, @stage, @geography, @website, @description, @status, @sourceType, @scanId, @corpusCompanyId, @createdAt)
   `).run(company);
 }
 
 export function updateCompanyStatus(id: string, status: string): void {
   const db = getDb();
   db.prepare('UPDATE companies SET status = ? WHERE id = ?').run(status, id);
+}
+
+export function getCompanyCounts(): { pipeline: number; passed: number; total: number } {
+  const db = getDb();
+  const all = db.prepare(`
+    SELECT c.status as cStatus, tfa.recommendation
+    FROM companies c
+    LEFT JOIN thesis_fit_analyses tfa ON tfa.companyId = c.id
+  `).all() as Array<{ cStatus: string; recommendation: string | null }>;
+
+  let pipeline = 0;
+  let passed = 0;
+  for (const row of all) {
+    const isPassed = row.recommendation === 'Pass'
+      && !['Reviewing', 'Priority', 'Follow-Up'].includes(row.cStatus);
+    if (isPassed) {
+      passed++;
+    } else {
+      pipeline++;
+    }
+  }
+  return { pipeline, passed, total: all.length };
 }

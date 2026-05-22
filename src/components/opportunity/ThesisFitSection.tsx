@@ -1,77 +1,86 @@
 import { FitBadge } from '@/components/dashboard/FitBadge';
+import { cn } from '@/lib/utils';
 import type { ThesisFitAnalysis } from '@/lib/types';
 
 interface ThesisFitSectionProps {
   fit: ThesisFitAnalysis;
 }
 
-const REC_STYLES = {
-  Priority: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-  Watch: 'text-amber-700 bg-amber-50 border-amber-200',
-  Pass: 'text-gray-600 bg-gray-50 border-gray-200',
+const REC_STYLES: Record<string, string> = {
+  Priority: 'text-[#1e5631] border-[#1e5631] bg-[#1e5631]/[0.06]',
+  Watch: 'text-[#b8893a] border-[#b8893a] bg-[#b8893a]/[0.08]',
+  Pass: 'text-[#6b1f2a] border-[#6b1f2a] bg-[#6b1f2a]/[0.06]',
 };
 
 export function ThesisFitSection({ fit }: ThesisFitSectionProps) {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-0.5">AI Generated</span>
-        <h2 className="text-sm font-semibold text-gray-900">Thesis Fit Analysis</h2>
+    <section className="border border-[#e8e2d4] bg-white p-8 mb-6">
+      <div className="flex items-baseline gap-3 mb-6 pb-3 border-b border-[#1a1816]">
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#6b1f2a] border border-[#6b1f2a] rounded-sm px-1.5 py-[2px]">
+          AI · Analysis
+        </span>
+        <h2 className="font-serif text-[22px] text-[#1a1816] tracking-tight">Thesis Fit</h2>
       </div>
 
-      <div className="flex items-center gap-4 mb-5 pb-5 border-b border-gray-100">
+      <div className="grid grid-cols-[auto_auto_1fr] gap-8 items-start mb-8 pb-8 border-b border-[#e8e2d4]">
         <div className="text-center">
-          <div className="text-3xl font-bold text-gray-900">{fit.fitScore}</div>
-          <div className="text-xs text-gray-400 mt-0.5">/ 100</div>
+          <div className="font-serif text-[56px] font-normal text-[#1a1816] leading-none">{fit.fitScore}</div>
+          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#6b6358] mt-1">out of 100</div>
         </div>
-        <div>
-          <FitBadge score={fit.fitScore} />
-          <div className="mt-1.5">
-            <span className={`text-xs font-semibold border rounded px-2 py-0.5 ${REC_STYLES[fit.recommendation]}`}>
-              {fit.recommendation}
-            </span>
-          </div>
+
+        <div className="flex flex-col gap-2.5 pt-2">
+          <FitBadge score={fit.fitScore} showScore={false} />
+          <span
+            className={cn(
+              'inline-block font-mono text-[10px] uppercase tracking-[0.1em] font-semibold border rounded-sm px-2 py-1 text-center',
+              REC_STYLES[fit.recommendation]
+            )}
+          >
+            AI Rec: {fit.recommendation}
+          </span>
         </div>
-        <div className="flex-1 pl-4 border-l border-gray-100">
-          <p className="text-sm text-gray-700 leading-relaxed">{fit.rationale}</p>
+
+        <div className="border-l border-[#e8e2d4] pl-8">
+          <div className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#6b6358] mb-2">Rationale</div>
+          <p className="font-serif text-[16px] italic text-[#1a1816] leading-relaxed">{fit.rationale}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-12 mb-6">
         <div>
-          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Key Risks</h3>
-          <ul className="space-y-1.5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-3">Key Risks</div>
+          <ol className="space-y-2">
             {fit.keyRisks.map((r, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="text-gray-300 shrink-0 mt-0.5">•</span>
-                {r}
+              <li key={i} className="flex items-start gap-3 text-[14px] text-[#1a1816] leading-relaxed">
+                <span className="font-mono text-[10px] text-[#6b1f2a] mt-1 shrink-0 w-5">{String(i + 1).padStart(2, '0')}</span>
+                <span>{r}</span>
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
         <div>
-          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Diligence Questions</h3>
-          <ul className="space-y-1.5">
+          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-3">Diligence Questions</div>
+          <ol className="space-y-2">
             {fit.diligenceQuestions.map((q, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                <span className="text-gray-300 shrink-0 mt-0.5">{i + 1}.</span>
-                {q}
+              <li key={i} className="flex items-start gap-3 text-[14px] text-[#1a1816] leading-relaxed">
+                <span className="font-mono text-[10px] text-[#6b1f2a] mt-1 shrink-0 w-5">{String(i + 1).padStart(2, '0')}</span>
+                <span>{q}</span>
               </li>
             ))}
-          </ul>
+          </ol>
         </div>
       </div>
 
       {fit.nextStep && (
-        <div className="mt-5 pt-4 border-t border-gray-100">
-          <span className="text-xs font-medium text-gray-400 uppercase tracking-wide block mb-1">AI Suggested Next Step</span>
-          <p className="text-sm text-gray-700">{fit.nextStep}</p>
+        <div className="bg-[#f5f1e8] border-l-2 border-[#6b1f2a] px-5 py-4 mb-4">
+          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b1f2a] mb-1">Recommended Next Step</div>
+          <p className="text-[14px] text-[#1a1816]">{fit.nextStep}</p>
         </div>
       )}
 
-      <p className="text-xs text-gray-400 mt-4">
-        Scored against: <span className="italic">&ldquo;{fit.thesisPromptUsed}&rdquo;</span>
+      <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#908874] pt-3 border-t border-[#e8e2d4]">
+        Scored against thesis: <span className="font-serif text-[12px] italic normal-case tracking-normal text-[#6b6358]">&ldquo;{fit.thesisPromptUsed}&rdquo;</span>
       </p>
-    </div>
+    </section>
   );
 }

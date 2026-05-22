@@ -5,19 +5,20 @@ interface ScanProgressProps {
 
 export function ScanProgress({ mode, count }: ScanProgressProps) {
   return (
-    <div className="border border-gray-200 rounded-lg p-8 text-center bg-white">
-      <div className="flex items-center justify-center gap-2 mb-3">
-        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse [animation-delay:0.2s]" />
-        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse [animation-delay:0.4s]" />
+    <div className="border border-[#e8e2d4] bg-[#faf7f2] py-16 px-8 text-center">
+      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#6b1f2a] mb-3">In Progress</div>
+      <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="w-2 h-2 rounded-full bg-[#6b1f2a] animate-pulse" />
+        <div className="w-2 h-2 rounded-full bg-[#6b1f2a] animate-pulse [animation-delay:0.2s]" />
+        <div className="w-2 h-2 rounded-full bg-[#6b1f2a] animate-pulse [animation-delay:0.4s]" />
       </div>
-      <p className="text-sm font-medium text-gray-700">
+      <p className="font-serif text-[20px] italic text-[#1a1816] mb-2">
         {mode === 'search'
-          ? `Scoring ${count ?? 'companies'} against your thesis...`
-          : 'Extracting company profile and scoring thesis fit...'}
+          ? `Scoring ${count ?? 'matched companies'} against your thesis`
+          : 'Extracting company profile and scoring thesis fit'}
       </p>
-      <p className="text-xs text-gray-400 mt-1">
-        AI is analyzing each company — this takes 10–30 seconds
+      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#6b6358]">
+        AI is analyzing — approximately 10 to 30 seconds
       </p>
     </div>
   );

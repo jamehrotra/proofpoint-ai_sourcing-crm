@@ -2,11 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { OverrideIndicator } from './OverrideIndicator';
 import { WORKFLOW_STATUSES } from '@/lib/utils';
 import type { ReviewDecision, WorkflowStatus, AIRecommendation } from '@/lib/types';
@@ -51,61 +46,68 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h2 className="text-sm font-semibold text-gray-900 mb-4">Reviewer Notes</h2>
+    <section className="border border-[#e8e2d4] bg-[#f5f1e8] p-8 mb-6">
+      <div className="flex items-baseline gap-3 mb-6 pb-3 border-b border-[#1a1816]">
+        <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#1a1816] border border-[#1a1816] rounded-sm px-1.5 py-[2px]">
+          Human · Review
+        </span>
+        <h2 className="font-serif text-[22px] text-[#1a1816] tracking-tight">Reviewer Decision</h2>
+      </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-6 mb-6">
         <div>
-          <Label htmlFor="status" className="text-xs font-medium text-gray-500 mb-1.5 block">Status</Label>
-          <Select value={status} onValueChange={(v) => { setStatus(v as WorkflowStatus); setSaved(false); }}>
-            <SelectTrigger id="status" className="text-sm w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {WORKFLOW_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Status</label>
+          <select
+            value={status}
+            onChange={(e) => { setStatus(e.target.value as WorkflowStatus); setSaved(false); }}
+            className="w-full bg-white border border-[#e8e2d4] px-3 py-2 text-[14px] text-[#1a1816] focus:outline-none focus:border-[#1a1816]"
+          >
+            {WORKFLOW_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
           {aiRecommendation && (
-            <div className="mt-1.5">
+            <div className="mt-2">
               <OverrideIndicator aiRecommendation={aiRecommendation} humanStatus={status} />
             </div>
           )}
         </div>
-
         <div>
-          <Label htmlFor="notes" className="text-xs font-medium text-gray-500 mb-1.5 block">Notes</Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => { setNotes(e.target.value); setSaved(false); }}
-            placeholder="Add your observations, questions, or context..."
-            rows={4}
-            className="text-sm resize-none"
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="nextStep" className="text-xs font-medium text-gray-500 mb-1.5 block">Next Step</Label>
-          <Input
-            id="nextStep"
+          <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Next Step</label>
+          <input
             value={nextStep}
             onChange={(e) => { setNextStep(e.target.value); setSaved(false); }}
             placeholder="e.g. Schedule intro call with founder"
-            className="text-sm"
+            className="w-full bg-white border border-[#e8e2d4] px-3 py-2 text-[14px] text-[#1a1816] placeholder:text-[#908874] placeholder:italic focus:outline-none focus:border-[#1a1816]"
           />
         </div>
       </div>
 
+      <div className="mb-6">
+        <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Reviewer Notes</label>
+        <textarea
+          value={notes}
+          onChange={(e) => { setNotes(e.target.value); setSaved(false); }}
+          placeholder="Add your observations, questions, or context..."
+          rows={5}
+          className="w-full bg-white border border-[#e8e2d4] px-3 py-2 text-[14px] text-[#1a1816] placeholder:text-[#908874] placeholder:italic focus:outline-none focus:border-[#1a1816] resize-none"
+        />
+      </div>
+
       {error && (
-        <div className="mt-3 text-xs text-red-600">{error}</div>
+        <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#6b1f2a] mb-3">Error · {error}</p>
       )}
 
-      <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100">
-        <Button size="sm" onClick={handleSave} disabled={saving}>
+      <div className="flex items-center gap-4 pt-4 border-t border-[#e8e2d4]">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-[#1a1816] text-[#faf7f2] px-5 py-2 text-[12px] font-medium tracking-[0.02em] hover:bg-[#0f1e3a] transition-colors disabled:opacity-50"
+        >
           {saving ? 'Saving...' : 'Save Decision'}
-        </Button>
-        {saved && <span className="text-xs text-emerald-600">Saved</span>}
+        </button>
+        {saved && (
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#1e5631]">Saved</span>
+        )}
       </div>
-    </div>
+    </section>
   );
 }

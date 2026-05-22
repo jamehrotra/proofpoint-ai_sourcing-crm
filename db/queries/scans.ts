@@ -2,6 +2,7 @@ import { getDb } from '../client';
 
 export interface ScanRow {
   id: string;
+  corpusId: string | null;
   sector: string;
   workflowCategory: string;
   thesisPrompt: string;
@@ -13,8 +14,8 @@ export interface ScanRow {
 export function insertScan(scan: ScanRow): void {
   const db = getDb();
   db.prepare(`
-    INSERT INTO sourcing_scans (id, sector, workflowCategory, thesisPrompt, mode, rawInput, createdAt)
-    VALUES (@id, @sector, @workflowCategory, @thesisPrompt, @mode, @rawInput, @createdAt)
+    INSERT INTO sourcing_scans (id, corpusId, sector, workflowCategory, thesisPrompt, mode, rawInput, createdAt)
+    VALUES (@id, @corpusId, @sector, @workflowCategory, @thesisPrompt, @mode, @rawInput, @createdAt)
   `).run(scan);
 }
 

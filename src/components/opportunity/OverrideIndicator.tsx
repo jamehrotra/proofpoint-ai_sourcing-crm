@@ -7,8 +7,8 @@ export function OverrideIndicator({ aiRecommendation, humanStatus }: OverrideInd
   if (aiRecommendation === humanStatus) return null;
 
   return (
-    <p className="text-xs text-gray-400 italic">
-      AI recommended: {aiRecommendation} &mdash; You set: {humanStatus}
+    <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#908874]">
+      AI recommended: <span className="text-[#6b6358]">{aiRecommendation}</span> &mdash; You set: <span className="text-[#1a1816]">{humanStatus}</span>
     </p>
   );
 }

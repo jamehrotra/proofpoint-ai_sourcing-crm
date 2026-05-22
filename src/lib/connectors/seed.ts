@@ -1,37 +1,20 @@
-import { getDb } from '../../../db/client';
+import { getCorpusCompanies } from '../../../db/queries/corpusCompanies';
 import type { SourceConnector, SourcingQuery, RawSourceResult } from './types';
 
-export class SeedDataConnector implements SourceConnector {
-  name = 'SeedDataConnector';
+export class CorpusConnector implements SourceConnector {
+  name = 'CorpusConnector';
 
   async search(query: SourcingQuery): Promise<RawSourceResult[]> {
-    const db = getDb();
-
-    let sql = `SELECT c.id, c.name, c.description, c.sector, c.workflowCategory, c.stage, c.geography, c.website
-               FROM companies c
-               WHERE c.sourceType = 'seed'`;
-    const params: string[] = [];
-
-    if (query.sector && query.sector !== 'Any') {
-      sql += ' AND c.sector = ?';
-      params.push(query.sector);
+    if (!query.corpusId) {
+      throw new Error('CorpusConnector requires a corpusId');
     }
 
-    if (query.workflowCategory && query.workflowCategory !== 'Any') {
-      sql += ' AND c.workflowCategory = ?';
-      params.push(query.workflowCategory);
-    }
-
-    const rows = db.prepare(sql).all(...params) as Array<{
-      id: string;
-      name: string;
-      description: string;
-      sector: string;
-      workflowCategory: string;
-      stage: string;
-      geography: string;
-      website: string | null;
-    }>;
+    const rows = getCorpusCompanies({
+      corpusId: query.corpusId,
+      sector: query.sector,
+      workflowCategory: query.workflowCategory,
+      limit: query.maxCompanies ?? 20,
+    });
 
     return rows.map((row) => ({
       name: row.name,
@@ -41,7 +24,8 @@ export class SeedDataConnector implements SourceConnector {
       stage: row.stage,
       geography: row.geography,
       website: row.website,
-      existingCompanyId: row.id,
+      corpusCompanyId: row.id,
+      prewrittenProfile: JSON.parse(row.profileJson),
     }));
   }
 }

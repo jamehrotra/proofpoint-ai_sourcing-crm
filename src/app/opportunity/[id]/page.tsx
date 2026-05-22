@@ -23,7 +23,11 @@ export default async function OpportunityPage({
   const companyRow = getCompanyById(id);
   if (!companyRow) notFound();
 
-  const company: Company = { ...companyRow, status: companyRow.status as Company['status'], sourceType: companyRow.sourceType as Company['sourceType'] };
+  const company: Company = {
+    ...companyRow,
+    status: companyRow.status as Company['status'],
+    sourceType: companyRow.sourceType as Company['sourceType'],
+  };
 
   const profileRow = getProfileByCompanyId(id);
   const fitRow = getFitByCompanyId(id);
@@ -52,42 +56,50 @@ export default async function OpportunityPage({
 
   return (
     <PageShell>
-      <div className="mb-4">
-        <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700">
-          <ChevronLeft className="w-4 h-4" />
-          Back to Pipeline
-        </Link>
-      </div>
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-[#6b6358] hover:text-[#1a1816] mb-8 transition-colors"
+      >
+        <ChevronLeft className="w-3.5 h-3.5" />
+        Back to Pipeline
+      </Link>
 
-      <div className="space-y-4">
-        <CompanyHeader company={company} />
+      <CompanyHeader company={company} />
 
-        {aiProfile && <AIProfileSection profile={aiProfile} />}
-
-        {!aiProfile && (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center">
-            <p className="text-sm text-gray-500">No AI profile available.</p>
-            <p className="text-xs text-gray-400 mt-1">Run a sourcing scan to generate a structured profile for this company.</p>
-          </div>
-        )}
-
-        {thesisFit && <ThesisFitSection fit={thesisFit} />}
-
-        {!thesisFit && (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-6 text-center">
-            <p className="text-sm text-gray-500">No thesis-fit analysis yet.</p>
-            <p className="text-xs text-gray-400 mt-1">Run a sourcing scan with a thesis prompt to generate a fit score for this company.</p>
-          </div>
-        )}
-
-        {thesisFit && aiProfile && <MemoSection companyId={id} />}
-
-        <ReviewPanel
-          companyId={id}
-          initialReview={reviewDecision}
-          aiRecommendation={thesisFit?.recommendation ?? null}
+      {aiProfile ? (
+        <AIProfileSection profile={aiProfile} />
+      ) : (
+        <EmptySection
+          title="No structured profile yet"
+          description="Run a sourcing scan to generate a structured AI profile for this company."
         />
-      </div>
+      )}
+
+      {thesisFit ? (
+        <ThesisFitSection fit={thesisFit} />
+      ) : (
+        <EmptySection
+          title="No thesis-fit analysis yet"
+          description="Run a sourcing scan with a thesis prompt to generate a fit score."
+        />
+      )}
+
+      {thesisFit && aiProfile && <MemoSection companyId={id} />}
+
+      <ReviewPanel
+        companyId={id}
+        initialReview={reviewDecision}
+        aiRecommendation={thesisFit?.recommendation ?? null}
+      />
     </PageShell>
+  );
+}
+
+function EmptySection({ title, description }: { title: string; description: string }) {
+  return (
+    <section className="border border-dashed border-[#d4cec0] bg-[#faf7f2] py-12 px-8 text-center mb-6">
+      <p className="font-serif text-[20px] italic text-[#6b6358] mb-1">{title}</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#908874]">{description}</p>
+    </section>
   );
 }

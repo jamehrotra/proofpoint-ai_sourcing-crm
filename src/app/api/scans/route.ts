@@ -2,89 +2,249 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { insertScan } from '../../../../db/queries/scans';
-import { getCompanies, insertCompany, updateCompanyStatus } from '../../../../db/queries/companies';
-import { getProfileByCompanyId, insertProfile } from '../../../../db/queries/aiProfiles';
+import { insertCompany, getCompanyByCorpusCompanyId, updateCompanyStatus } from '../../../../db/queries/companies';
+import { insertProfile } from '../../../../db/queries/aiProfiles';
 import { upsertFit } from '../../../../db/queries/thesisFit';
-import { SeedDataConnector } from '../../../lib/connectors/seed';
-import { ManualInputConnector } from '../../../lib/connectors/manual';
+import { CorpusConnector } from '../../../lib/connectors/seed';
 import { scoreThesisFit } from '../../../lib/ai/score';
 import { extractProfile } from '../../../lib/ai/extract';
 import type { RawSourceResult } from '../../../lib/connectors/types';
 
-const ScanRequestSchema = z.object({
+const SearchScanSchema = z.object({
+  mode: z.literal('search'),
+  corpusId: z.string().min(1),
   sector: z.string().min(1),
   workflowCategory: z.string().min(1),
   thesisPrompt: z.string().min(10),
-  mode: z.enum(['search', 'analyze']),
-  rawInput: z.string().optional(),
+  maxCompanies: z.number().int().min(1).max(20).optional(),
 });
+
+const AnalyzeScanSchema = z.object({
+  mode: z.literal('analyze'),
+  sector: z.string().min(1).default('Any'),
+  workflowCategory: z.string().min(1).default('Any'),
+  thesisPrompt: z.string().min(10),
+  rawInput: z.string().min(20),
+});
+
+const PDF_MAX_BYTES = 10 * 1024 * 1024;
+const PDF_TEXT_MAX_CHARS = 30000;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const parsed = ScanRequestSchema.safeParse(body);
+    const contentType = request.headers.get('content-type') ?? '';
+
+    if (contentType.startsWith('multipart/form-data')) {
+      return await handleMultipart(request);
+    }
+
+    return await handleJson(request);
+  } catch (error) {
+    const err = error as Error;
+    console.error('POST /api/scans error:', err);
+    return NextResponse.json({ error: 'Scan failed', detail: err.message }, { status: 500 });
+  }
+}
+
+async function handleJson(request: NextRequest) {
+  const body = await request.json();
+  const mode = body.mode;
+
+  if (mode === 'search') {
+    const parsed = SearchScanSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid scan request', details: parsed.error.message }, { status: 400 });
     }
+    return runSearchScan(parsed.data);
+  }
 
-    const { sector, workflowCategory, thesisPrompt, mode, rawInput } = parsed.data;
-
-    if (mode === 'analyze' && !rawInput?.trim()) {
-      return NextResponse.json({ error: 'rawInput is required for analyze mode' }, { status: 400 });
+  if (mode === 'analyze') {
+    const parsed = AnalyzeScanSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid scan request', details: parsed.error.message }, { status: 400 });
     }
+    return runAnalyzeScan({ ...parsed.data, rawInput: parsed.data.rawInput });
+  }
 
-    const scanId = nanoid();
-    const now = new Date().toISOString();
+  return NextResponse.json({ error: 'Unknown scan mode' }, { status: 400 });
+}
 
-    insertScan({ id: scanId, sector, workflowCategory, thesisPrompt, mode, rawInput: rawInput ?? null, createdAt: now });
+async function handleMultipart(request: NextRequest) {
+  const formData = await request.formData();
+  const file = formData.get('file');
+  const thesisPrompt = (formData.get('thesisPrompt') as string | null)?.trim() ?? '';
+  const sector = (formData.get('sector') as string | null) ?? 'Any';
+  const workflowCategory = (formData.get('workflowCategory') as string | null) ?? 'Any';
 
-    const query = { sector, workflowCategory, thesisPrompt, rawInput };
+  if (!file || !(file instanceof File)) {
+    return NextResponse.json({ error: 'No PDF file uploaded' }, { status: 400 });
+  }
 
-    let sourceResults: RawSourceResult[] = [];
-    if (mode === 'search') {
-      const connector = new SeedDataConnector();
-      sourceResults = await connector.search(query);
-    } else {
-      const connector = new ManualInputConnector();
-      sourceResults = await connector.search(query);
+  if (file.size > PDF_MAX_BYTES) {
+    return NextResponse.json({ error: 'PDF too large (max 10 MB)' }, { status: 400 });
+  }
+
+  if (thesisPrompt.length < 10) {
+    return NextResponse.json({ error: 'Thesis prompt must be at least 10 characters' }, { status: 400 });
+  }
+
+  let extractedText = '';
+  let parser: { destroy: () => Promise<void> } | null = null;
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { PDFParse } = await import('pdf-parse');
+    const instance = new PDFParse({ data: buffer });
+    parser = instance;
+    const result = await instance.getText();
+    extractedText = (result.text ?? '').trim();
+  } catch (err) {
+    const error = err as Error;
+    return NextResponse.json(
+      { error: 'Could not extract text from this PDF', detail: error.message },
+      { status: 400 }
+    );
+  } finally {
+    if (parser) {
+      try { await parser.destroy(); } catch { /* noop */ }
     }
+  }
 
-    const warnings: string[] = [];
-    const processedCompanyIds: string[] = [];
+  if (extractedText.length < 50) {
+    return NextResponse.json(
+      { error: 'PDF contained no usable text. Try a text-based PDF rather than scanned images.' },
+      { status: 400 }
+    );
+  }
 
-    for (const source of sourceResults) {
-      try {
-        let companyId = source.existingCompanyId ?? nanoid();
-        let aiProfileData: { problem: string; customer: string; aiUseCase: string; dataMoatPotential: string; businessModel?: string; fundingStage?: string; competitiveLandscape?: string; risks: string[] };
+  if (extractedText.length > PDF_TEXT_MAX_CHARS) {
+    extractedText = extractedText.slice(0, PDF_TEXT_MAX_CHARS);
+  }
 
-        if (source.existingCompanyId) {
-          const existingProfile = getProfileByCompanyId(source.existingCompanyId);
-          if (existingProfile) {
-            aiProfileData = {
-              ...existingProfile,
-              risks: JSON.parse(existingProfile.risks as string),
-            };
-          } else {
-            const extracted = await extractProfile(source.description);
-            aiProfileData = extracted;
-            insertProfile({
-              id: nanoid(),
-              companyId,
-              problem: extracted.problem,
-              customer: extracted.customer,
-              aiUseCase: extracted.aiUseCase,
-              dataMoatPotential: extracted.dataMoatPotential,
-              businessModel: extracted.businessModel ?? '',
-              fundingStage: extracted.fundingStage ?? 'Unknown',
-              competitiveLandscape: extracted.competitiveLandscape ?? '',
-              risks: JSON.stringify(extracted.risks),
-              extractedAt: now,
-            });
-          }
+  return runAnalyzeScan({
+    mode: 'analyze',
+    sector,
+    workflowCategory,
+    thesisPrompt,
+    rawInput: extractedText,
+  });
+}
+
+async function runSearchScan(input: z.infer<typeof SearchScanSchema>) {
+  const { corpusId, sector, workflowCategory, thesisPrompt, maxCompanies } = input;
+  const scanId = nanoid();
+  const now = new Date().toISOString();
+
+  insertScan({
+    id: scanId,
+    corpusId,
+    sector,
+    workflowCategory,
+    thesisPrompt,
+    mode: 'search',
+    rawInput: null,
+    createdAt: now,
+  });
+
+  const connector = new CorpusConnector();
+  let sources: RawSourceResult[] = [];
+  try {
+    sources = await connector.search({
+      corpusId,
+      sector,
+      workflowCategory,
+      thesisPrompt,
+      maxCompanies: maxCompanies ?? 20,
+    });
+  } catch (err) {
+    const error = err as Error;
+    return NextResponse.json({ error: 'Corpus query failed', detail: error.message }, { status: 500 });
+  }
+
+  if (sources.length === 0) {
+    return NextResponse.json({
+      scanId,
+      surfacedCount: 0,
+      passedCount: 0,
+      processedCount: 0,
+      warnings: ['No companies in the selected corpus matched your sector/workflow filters. Try widening the filters.'],
+    });
+  }
+
+  const result = await evaluateAndStore(sources, thesisPrompt, scanId, now);
+  return NextResponse.json({ scanId, ...result });
+}
+
+async function runAnalyzeScan(input: { mode: 'analyze'; sector: string; workflowCategory: string; thesisPrompt: string; rawInput: string }) {
+  const { sector, workflowCategory, thesisPrompt, rawInput } = input;
+  const scanId = nanoid();
+  const now = new Date().toISOString();
+
+  insertScan({
+    id: scanId,
+    corpusId: null,
+    sector,
+    workflowCategory,
+    thesisPrompt,
+    mode: 'analyze',
+    rawInput,
+    createdAt: now,
+  });
+
+  let extracted;
+  try {
+    extracted = await extractProfile(rawInput);
+  } catch (err) {
+    const error = err as Error;
+    return NextResponse.json({ error: 'Profile extraction failed', detail: error.message }, { status: 502 });
+  }
+
+  const source: RawSourceResult = {
+    name: extracted.companyName,
+    description: rawInput.slice(0, 500),
+    sector: extracted.sector ?? sector,
+    workflowCategory: extracted.workflowCategory ?? workflowCategory,
+    stage: extracted.stageEstimate ?? 'Unknown',
+    geography: 'Unknown',
+    website: null,
+    prewrittenProfile: {
+      problem: extracted.problem,
+      customer: extracted.customer,
+      aiUseCase: extracted.aiUseCase,
+      dataMoatPotential: extracted.dataMoatPotential,
+      businessModel: extracted.businessModel ?? '',
+      fundingStage: extracted.fundingStage ?? extracted.stageEstimate ?? 'Unknown',
+      competitiveLandscape: extracted.competitiveLandscape ?? '',
+      risks: extracted.risks,
+    },
+  };
+
+  const result = await evaluateAndStore([source], thesisPrompt, scanId, now);
+  return NextResponse.json({ scanId, ...result });
+}
+
+async function evaluateAndStore(
+  sources: RawSourceResult[],
+  thesisPrompt: string,
+  scanId: string,
+  now: string
+) {
+  const warnings: string[] = [];
+  let surfacedCount = 0;
+  let passedCount = 0;
+  let processedCount = 0;
+
+  for (const source of sources) {
+    try {
+      let companyId: string;
+      let profileForScoring;
+
+      if (source.corpusCompanyId) {
+        const existing = getCompanyByCorpusCompanyId(source.corpusCompanyId);
+        if (existing) {
+          companyId = existing.id;
+          profileForScoring = source.prewrittenProfile!;
         } else {
-          const extracted = await extractProfile(source.description);
-          aiProfileData = extracted;
-
+          companyId = nanoid();
           insertCompany({
             id: companyId,
             name: source.name,
@@ -95,57 +255,91 @@ export async function POST(request: NextRequest) {
             website: source.website,
             description: source.description,
             status: 'New',
-            sourceType: 'ai-extracted',
+            sourceType: 'corpus',
             scanId,
+            corpusCompanyId: source.corpusCompanyId,
             createdAt: now,
           });
 
+          const profile = source.prewrittenProfile!;
           insertProfile({
             id: nanoid(),
             companyId,
-            problem: extracted.problem,
-            customer: extracted.customer,
-            aiUseCase: extracted.aiUseCase,
-            dataMoatPotential: extracted.dataMoatPotential,
-            businessModel: extracted.businessModel ?? '',
-            fundingStage: extracted.fundingStage ?? 'Unknown',
-            competitiveLandscape: extracted.competitiveLandscape ?? '',
-            risks: JSON.stringify(extracted.risks),
+            problem: profile.problem,
+            customer: profile.customer,
+            aiUseCase: profile.aiUseCase,
+            dataMoatPotential: profile.dataMoatPotential,
+            businessModel: profile.businessModel,
+            fundingStage: profile.fundingStage,
+            competitiveLandscape: profile.competitiveLandscape,
+            risks: JSON.stringify(profile.risks),
             extractedAt: now,
           });
+          profileForScoring = profile;
         }
-
-        const fitResult = await scoreThesisFit(aiProfileData, thesisPrompt);
-
-        upsertFit({
+      } else {
+        companyId = nanoid();
+        const profile = source.prewrittenProfile!;
+        insertCompany({
+          id: companyId,
+          name: source.name,
+          sector: source.sector,
+          workflowCategory: source.workflowCategory,
+          stage: source.stage,
+          geography: source.geography,
+          website: source.website,
+          description: source.description,
+          status: 'New',
+          sourceType: 'ai-extracted',
+          scanId,
+          corpusCompanyId: null,
+          createdAt: now,
+        });
+        insertProfile({
           id: nanoid(),
           companyId,
-          fitScore: fitResult.thesisFitScore,
-          recommendation: fitResult.recommendation,
-          rationale: fitResult.rationale,
-          keyRisks: JSON.stringify(fitResult.keyRisks),
-          diligenceQuestions: JSON.stringify(fitResult.diligenceQuestions),
-          nextStep: fitResult.nextStep,
-          thesisPromptUsed: thesisPrompt,
-          scoredAt: now,
+          problem: profile.problem,
+          customer: profile.customer,
+          aiUseCase: profile.aiUseCase,
+          dataMoatPotential: profile.dataMoatPotential,
+          businessModel: profile.businessModel,
+          fundingStage: profile.fundingStage,
+          competitiveLandscape: profile.competitiveLandscape,
+          risks: JSON.stringify(profile.risks),
+          extractedAt: now,
         });
-
-        updateCompanyStatus(companyId, 'New');
-        processedCompanyIds.push(companyId);
-      } catch (err) {
-        const error = err as Error;
-        console.error(`Failed to process company ${source.name}:`, error.message);
-        warnings.push(`Could not score ${source.name}: ${error.message}`);
+        profileForScoring = profile;
       }
+
+      const fitResult = await scoreThesisFit(profileForScoring, thesisPrompt);
+
+      upsertFit({
+        id: nanoid(),
+        companyId,
+        fitScore: fitResult.thesisFitScore,
+        recommendation: fitResult.recommendation,
+        rationale: fitResult.rationale,
+        keyRisks: JSON.stringify(fitResult.keyRisks),
+        diligenceQuestions: JSON.stringify(fitResult.diligenceQuestions),
+        nextStep: fitResult.nextStep,
+        thesisPromptUsed: thesisPrompt,
+        scoredAt: now,
+      });
+
+      updateCompanyStatus(companyId, 'New');
+
+      if (fitResult.recommendation === 'Pass') {
+        passedCount++;
+      } else {
+        surfacedCount++;
+      }
+      processedCount++;
+    } catch (err) {
+      const error = err as Error;
+      console.error(`Failed to process company ${source.name}:`, error.message);
+      warnings.push(`Could not score ${source.name}: ${error.message}`);
     }
-
-    const companies = getCompanies({});
-    const surfaced = companies.filter((c) => processedCompanyIds.includes(c.id));
-
-    return NextResponse.json({ scanId, companies: surfaced, warnings });
-  } catch (error) {
-    const err = error as Error;
-    console.error('POST /api/scans error:', err);
-    return NextResponse.json({ error: 'Scan failed', detail: err.message }, { status: 500 });
   }
+
+  return { surfacedCount, passedCount, processedCount, warnings };
 }

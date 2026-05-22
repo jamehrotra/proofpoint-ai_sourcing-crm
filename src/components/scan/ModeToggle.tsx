@@ -10,15 +10,15 @@ interface ModeToggleProps {
 
 export function ModeToggle({ mode, onChange }: ModeToggleProps) {
   return (
-    <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1 gap-1">
+    <div className="inline-flex border border-[#1a1816] rounded-sm overflow-hidden">
       <button
         type="button"
         onClick={() => onChange('search')}
         className={cn(
-          'px-4 py-1.5 text-sm rounded-md transition-colors font-medium',
+          'font-mono text-[10px] uppercase tracking-[0.08em] px-4 py-2 font-medium transition-colors',
           mode === 'search'
-            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-            : 'text-gray-500 hover:text-gray-700'
+            ? 'bg-[#1a1816] text-[#faf7f2]'
+            : 'bg-transparent text-[#1a1816] hover:bg-[#f5f1e8]'
         )}
       >
         Search for Companies
@@ -27,10 +27,10 @@ export function ModeToggle({ mode, onChange }: ModeToggleProps) {
         type="button"
         onClick={() => onChange('analyze')}
         className={cn(
-          'px-4 py-1.5 text-sm rounded-md transition-colors font-medium',
+          'font-mono text-[10px] uppercase tracking-[0.08em] px-4 py-2 font-medium border-l border-[#1a1816] transition-colors',
           mode === 'analyze'
-            ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-            : 'text-gray-500 hover:text-gray-700'
+            ? 'bg-[#1a1816] text-[#faf7f2]'
+            : 'bg-transparent text-[#1a1816] hover:bg-[#f5f1e8]'
         )}
       >
         Analyze Given Data

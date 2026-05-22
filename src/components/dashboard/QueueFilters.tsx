@@ -2,8 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useCallback } from 'react';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 import { SECTORS, WORKFLOW_STATUSES } from '@/lib/utils';
 
 export function QueueFilters() {
@@ -24,50 +23,64 @@ export function QueueFilters() {
     [router, pathname, searchParams]
   );
 
+  const activeSector = searchParams.get('sector') ?? 'All';
+  const activeStatus = searchParams.get('status') ?? 'All';
+  const activeRec = searchParams.get('recommendation') ?? 'All';
+
   return (
-    <div className="flex flex-wrap items-center gap-3 mb-4">
-      <Input
-        placeholder="Search companies..."
-        defaultValue={searchParams.get('search') ?? ''}
-        onChange={(e) => {
-          const value = e.target.value;
-          clearTimeout((window as typeof window & { _searchTimeout?: ReturnType<typeof setTimeout> })._searchTimeout);
-          (window as typeof window & { _searchTimeout?: ReturnType<typeof setTimeout> })._searchTimeout = setTimeout(() => updateParam('search', value), 300);
-        }}
-        className="w-56 h-8 text-sm"
-      />
+    <div className="space-y-3 mb-8">
+      <div className="flex items-center gap-6">
+        <input
+          placeholder="Search companies, sectors, workflows..."
+          defaultValue={searchParams.get('search') ?? ''}
+          onChange={(e) => {
+            const value = e.target.value;
+            const w = window as typeof window & { _searchTimeout?: ReturnType<typeof setTimeout> };
+            clearTimeout(w._searchTimeout);
+            w._searchTimeout = setTimeout(() => updateParam('search', value), 300);
+          }}
+          className="flex-1 max-w-md bg-transparent border-0 border-b border-[#1a1816] px-0 py-2 text-[13px] text-[#1a1816] placeholder:text-[#908874] placeholder:italic focus:outline-none focus:border-[#6b1f2a] transition-colors"
+        />
+        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#6b6358] shrink-0">Filter</span>
+      </div>
 
-      <Select defaultValue={searchParams.get('sector') || 'All'} onValueChange={(v) => v && updateParam('sector', v)}>
-        <SelectTrigger className="w-44 h-8 text-sm">
-          <SelectValue placeholder="Sector" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All Sectors</SelectItem>
-          {SECTORS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterChipGroup label="Sector" active={activeSector} options={['All', ...SECTORS]} onSelect={(v) => updateParam('sector', v)} />
+        <span className="text-[#d4cec0]">|</span>
+        <FilterChipGroup label="Status" active={activeStatus} options={['All', ...WORKFLOW_STATUSES]} onSelect={(v) => updateParam('status', v)} />
+        <span className="text-[#d4cec0]">|</span>
+        <FilterChipGroup label="AI Rec" active={activeRec} options={['All', 'Priority', 'Watch', 'Pass']} onSelect={(v) => updateParam('recommendation', v)} />
+      </div>
+    </div>
+  );
+}
 
-      <Select defaultValue={searchParams.get('status') || 'All'} onValueChange={(v) => v && updateParam('status', v)}>
-        <SelectTrigger className="w-36 h-8 text-sm">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All Statuses</SelectItem>
-          {WORKFLOW_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-        </SelectContent>
-      </Select>
-
-      <Select defaultValue={searchParams.get('recommendation') || 'All'} onValueChange={(v) => v && updateParam('recommendation', v)}>
-        <SelectTrigger className="w-36 h-8 text-sm">
-          <SelectValue placeholder="AI Fit" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="All">All Fit</SelectItem>
-          <SelectItem value="Priority">Priority</SelectItem>
-          <SelectItem value="Watch">Watch</SelectItem>
-          <SelectItem value="Pass">Pass</SelectItem>
-        </SelectContent>
-      </Select>
+function FilterChipGroup({
+  active,
+  options,
+  onSelect,
+}: {
+  label: string;
+  active: string;
+  options: readonly string[];
+  onSelect: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          onClick={() => onSelect(opt)}
+          className={cn(
+            'font-mono text-[10px] uppercase tracking-[0.08em] px-2.5 py-1 rounded-sm transition-colors border',
+            active === opt
+              ? 'bg-[#1a1816] text-[#faf7f2] border-[#1a1816]'
+              : 'bg-[#f5f1e8] text-[#1a1816] border-[#e8e2d4] hover:border-[#1a1816]'
+          )}
+        >
+          {opt}
+        </button>
+      ))}
     </div>
   );
 }
