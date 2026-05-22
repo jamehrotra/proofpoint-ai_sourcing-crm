@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getAnthropicClient } from './client';
 import { EXTRACT_SYSTEM_PROMPT } from './prompts';
+import { parseClaudeJson } from './parse';
 import type { AIProfileInput } from '../types';
 
 const AIProfileSchema = z.object({
@@ -35,7 +36,7 @@ export async function extractProfile(rawText: string): Promise<AIProfileInput> {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content.text);
+    parsed = parseClaudeJson(content.text);
   } catch {
     throw new Error(`Claude returned non-JSON output: ${content.text.slice(0, 200)}`);
   }

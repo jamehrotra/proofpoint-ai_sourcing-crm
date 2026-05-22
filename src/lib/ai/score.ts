@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getAnthropicClient } from './client';
 import { SCORE_SYSTEM_PROMPT } from './prompts';
+import { parseClaudeJson } from './parse';
 import type { ThesisFitInput } from '../types';
 
 const ThesisFitSchema = z.object({
@@ -58,7 +59,7 @@ ${thesisPrompt}`;
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content.text);
+    parsed = parseClaudeJson(content.text);
   } catch {
     throw new Error(`Claude returned non-JSON output: ${content.text.slice(0, 200)}`);
   }

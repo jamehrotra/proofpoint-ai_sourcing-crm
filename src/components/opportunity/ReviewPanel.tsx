@@ -16,14 +16,14 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
   const router = useRouter();
   const [notes, setNotes] = useState(initialReview?.reviewerNotes ?? '');
   const [status, setStatus] = useState<WorkflowStatus>(initialReview?.status ?? 'New');
-  const [nextStep, setNextStep] = useState(initialReview?.nextStep ?? '');
+  const [nextStep, setNextStep] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [confirmation, setConfirmation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     setSaving(true);
-    setSaved(false);
+    setConfirmation(null);
     setError(null);
     try {
       const res = await fetch(`/api/review/${companyId}`, {
@@ -36,8 +36,18 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
         setError(data.error ?? 'Failed to save.');
         return;
       }
-      setSaved(true);
+      const data = await res.json();
+      const hadTask = nextStep.trim().length > 0;
+      setNextStep('');
+      setConfirmation(
+        hadTask
+          ? 'Decision saved · Task added to To Do'
+          : data.success ? 'Decision saved' : 'Saved'
+      );
       router.refresh();
+
+      // Auto-dismiss confirmation after a few seconds
+      setTimeout(() => setConfirmation(null), 4000);
     } catch {
       setError('Network error.');
     } finally {
@@ -59,7 +69,7 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
           <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Status</label>
           <select
             value={status}
-            onChange={(e) => { setStatus(e.target.value as WorkflowStatus); setSaved(false); }}
+            onChange={(e) => { setStatus(e.target.value as WorkflowStatus); setConfirmation(null); }}
             className="w-full bg-white border border-[#e8e2d4] px-3 py-2 text-[14px] text-[#1a1816] focus:outline-none focus:border-[#1a1816]"
           >
             {WORKFLOW_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -71,13 +81,16 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
           )}
         </div>
         <div>
-          <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Next Step</label>
+          <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Add Next Step (creates a task)</label>
           <input
             value={nextStep}
-            onChange={(e) => { setNextStep(e.target.value); setSaved(false); }}
+            onChange={(e) => { setNextStep(e.target.value); setConfirmation(null); }}
             placeholder="e.g. Schedule intro call with founder"
             className="w-full bg-white border border-[#e8e2d4] px-3 py-2 text-[14px] text-[#1a1816] placeholder:text-[#908874] placeholder:italic focus:outline-none focus:border-[#1a1816]"
           />
+          <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.1em] text-[#908874]">
+            Each save creates a new task. View all in the To Do tab.
+          </p>
         </div>
       </div>
 
@@ -85,7 +98,7 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
         <label className="block font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-1.5">Reviewer Notes</label>
         <textarea
           value={notes}
-          onChange={(e) => { setNotes(e.target.value); setSaved(false); }}
+          onChange={(e) => { setNotes(e.target.value); setConfirmation(null); }}
           placeholder="Add your observations, questions, or context..."
           rows={5}
           className="w-full bg-white border border-[#e8e2d4] px-3 py-2 text-[14px] text-[#1a1816] placeholder:text-[#908874] placeholder:italic focus:outline-none focus:border-[#1a1816] resize-none"
@@ -104,8 +117,10 @@ export function ReviewPanel({ companyId, initialReview, aiRecommendation }: Revi
         >
           {saving ? 'Saving...' : 'Save Decision'}
         </button>
-        {saved && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#1e5631]">Saved</span>
+        {confirmation && (
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#1e5631]">
+            ✓ {confirmation}
+          </span>
         )}
       </div>
     </section>

@@ -5,12 +5,14 @@ import { getCompanyById } from '../../../../db/queries/companies';
 import { getProfileByCompanyId } from '../../../../db/queries/aiProfiles';
 import { getFitByCompanyId } from '../../../../db/queries/thesisFit';
 import { getReviewByCompanyId } from '../../../../db/queries/reviewDecisions';
+import { getTasksForCompany } from '../../../../db/queries/tasks';
 import { PageShell } from '@/components/layout/PageShell';
 import { CompanyHeader } from '@/components/opportunity/CompanyHeader';
 import { AIProfileSection } from '@/components/opportunity/AIProfileSection';
 import { ThesisFitSection } from '@/components/opportunity/ThesisFitSection';
 import { ReviewPanel } from '@/components/opportunity/ReviewPanel';
 import { MemoSection } from '@/components/opportunity/MemoSection';
+import { OpenTasks } from '@/components/opportunity/OpenTasks';
 import type { AIProfile, ThesisFitAnalysis, ReviewDecision, Company } from '@/lib/types';
 
 export default async function OpportunityPage({
@@ -91,6 +93,8 @@ export default async function OpportunityPage({
         initialReview={reviewDecision}
         aiRecommendation={thesisFit?.recommendation ?? null}
       />
+
+      <OpenTasks tasks={getTasksForCompany(id)} />
     </PageShell>
   );
 }

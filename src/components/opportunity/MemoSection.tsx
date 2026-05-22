@@ -1,10 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { marked } from 'marked';
 
 interface MemoSectionProps {
   companyId: string;
 }
+
+marked.setOptions({
+  gfm: true,
+  breaks: false,
+});
 
 export function MemoSection({ companyId }: MemoSectionProps) {
   const [memo, setMemo] = useState<string | null>(null);
@@ -84,45 +90,12 @@ export function MemoSection({ companyId }: MemoSectionProps) {
 }
 
 function MemoRenderer({ markdown }: { markdown: string }) {
-  const lines = markdown.split('\n');
+  const html = marked.parse(markdown, { async: false }) as string;
 
   return (
-    <div className="max-w-3xl">
-      {lines.map((line, i) => {
-        if (line.startsWith('## ')) {
-          return (
-            <h3
-              key={i}
-              className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#6b1f2a] mt-7 mb-3 first:mt-0"
-            >
-              {line.replace('## ', '')}
-            </h3>
-          );
-        }
-        if (line.startsWith('# ')) {
-          return (
-            <h2 key={i} className="font-serif text-[24px] text-[#1a1816] mb-3 tracking-tight">
-              {line.replace('# ', '')}
-            </h2>
-          );
-        }
-        if (line.startsWith('- ') || line.startsWith('* ')) {
-          return (
-            <div key={i} className="flex items-start gap-3 mb-2 text-[14px] text-[#1a1816] leading-relaxed">
-              <span className="text-[#6b1f2a] shrink-0 mt-1">·</span>
-              <span>{line.replace(/^[-*] /, '')}</span>
-            </div>
-          );
-        }
-        if (line.trim() === '') {
-          return <div key={i} className="h-2" />;
-        }
-        return (
-          <p key={i} className="font-serif text-[15px] text-[#1a1816] leading-[1.7] mb-3">
-            {line}
-          </p>
-        );
-      })}
-    </div>
+    <div
+      className="memo-prose max-w-3xl"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }

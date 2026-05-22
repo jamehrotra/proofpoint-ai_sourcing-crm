@@ -133,3 +133,141 @@
     font-weight: 500;
   }
 }
+
+/* Editorial memo prose styles — applied to the AI-generated markdown */
+.memo-prose h1 {
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: #1a1816;
+  margin: 0 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #1a1816;
+}
+
+.memo-prose h2 {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  color: #6b1f2a;
+  margin: 28px 0 10px;
+}
+
+.memo-prose h2:first-child {
+  margin-top: 0;
+}
+
+.memo-prose h3 {
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: #1a1816;
+  margin: 20px 0 8px;
+  letter-spacing: -0.01em;
+}
+
+.memo-prose p {
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: #1a1816;
+  margin: 0 0 14px;
+}
+
+.memo-prose strong {
+  font-weight: 600;
+  color: #1a1816;
+}
+
+.memo-prose em {
+  font-style: italic;
+}
+
+.memo-prose ul,
+.memo-prose ol {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.memo-prose ul li,
+.memo-prose ol li {
+  position: relative;
+  padding-left: 28px;
+  margin: 0 0 10px;
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1a1816;
+}
+
+.memo-prose ul li::before {
+  content: "·";
+  position: absolute;
+  left: 10px;
+  top: 0;
+  color: #6b1f2a;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: bold;
+}
+
+.memo-prose ol {
+  counter-reset: memo-item;
+}
+
+.memo-prose ol li {
+  counter-increment: memo-item;
+}
+
+.memo-prose ol li::before {
+  content: counter(memo-item, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 4px;
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: #6b1f2a;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+.memo-prose hr {
+  border: none;
+  border-top: 1px solid #e8e2d4;
+  margin: 24px 0;
+}
+
+.memo-prose blockquote {
+  border-left: 2px solid #6b1f2a;
+  padding-left: 16px;
+  margin: 16px 0;
+  color: #6b6358;
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 15px;
+}
+
+.memo-prose code {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+  background: #f5f1e8;
+  padding: 1px 5px;
+  border-radius: 2px;
+  color: #1a1816;
+}
+
+.memo-prose a {
+  color: #0f1e3a;
+  text-decoration: underline;
+  text-decoration-color: #b8893a;
+  text-underline-offset: 3px;
+}
+
+.memo-prose a:hover {
+  color: #6b1f2a;
+}

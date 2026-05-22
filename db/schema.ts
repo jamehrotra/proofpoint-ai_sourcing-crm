@@ -85,5 +85,17 @@ export function initSchema() {
       aiRecommendation TEXT,
       updatedAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY,
+      companyId TEXT NOT NULL REFERENCES companies(id),
+      description TEXT NOT NULL,
+      done INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      completedAt TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tasks_company ON tasks(companyId);
+    CREATE INDEX IF NOT EXISTS idx_tasks_done ON tasks(done);
   `);
 }
