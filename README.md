@@ -200,10 +200,38 @@ Cascade delete on `DELETE /api/companies/:id` removes the company and every depe
 
 ```
 ANTHROPIC_API_KEY=your_key_here
-WEB_SEARCH_PROVIDER=mock   # mock | tavily | exa (only mock implemented)
+WEB_SEARCH_PROVIDER=mock      # legacy; the web chain below supersedes this
+
+# Optional — web provider chain for URL fetching (Analyze mode) and the
+# future Search-the-Web scan mode. Chain order: Tavily → You.com → Jina.
+TAVILY_API_KEY=your_key_here  # https://tavily.com (free 1k/month)
+YOUCOM_API_KEY=your_key_here  # https://api.you.com
 ```
 
+If neither Tavily nor You.com keys are set, URL fetching still works — the chain falls back to **Jina Reader**, which requires no API key.
+
 The AI client reads from `.env.local` directly as a fallback if the variable is empty in the process environment (handles a common case where a parent shell exports the variable as an empty string).
+
+## Web Layer Architecture
+
+Signal Scout has a small but extensible web layer at `src/lib/web/` that backs two product features:
+
+| Feature | Status | Uses |
+|---|---|---|
+| **URL ingestion in Analyze mode** | ✅ Shipped | `chain.fetchUrl(url)` |
+| **Search the Web scan mode** | 🟡 Architecture ready, UI not built | `chain.search(thesis)` |
+
+The chain tries each provider in order and returns the first non-empty result:
+
+```
+Tavily       → real extraction, JS-aware, 1-3s
+You.com      → snippet aggregation as middle layer
+Jina Reader  → always-works floor, no key needed
+```
+
+Each provider implements a tiny `WebProvider` interface (`fetchUrl`, optional `search`). Adding a new provider (Exa, Firecrawl, etc.) is a single file. The chain order is hard-coded today; a future improvement is to make it configurable per environment.
+
+In Analyze mode, paste a URL like `https://abridge.com` and the scan automatically fetches the page, extracts the company profile, and scores it against your thesis. The same pipeline as the corpus scan, just with the company data coming from the live web.
 
 ---
 

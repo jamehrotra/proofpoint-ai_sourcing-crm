@@ -17,10 +17,31 @@ export function DiligenceQuestions({ companyId, questions }: DiligenceQuestionsP
   async function addAsTask(index: number, question: string) {
     setStatuses((s) => ({ ...s, [index]: 'adding' }));
     try {
+      // 1. Ask Claude to rewrite the diligence question as an actionable task.
+      let description = question;
+      try {
+        const rewriteRes = await fetch('/api/ai/rewrite-diligence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question }),
+        });
+        if (rewriteRes.ok) {
+          const data = await rewriteRes.json();
+          if (typeof data.action === 'string' && data.action.trim().length > 0) {
+            description = data.action.trim();
+          }
+        }
+        // If rewrite fails for any reason, fall through with the original question —
+        // better to save *something* than block the user.
+      } catch {
+        // network or parse failure — fall through with original question
+      }
+
+      // 2. Save the (rewritten or fallback) task.
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId, description: question }),
+        body: JSON.stringify({ companyId, description }),
       });
       if (!res.ok) {
         setStatuses((s) => ({ ...s, [index]: 'idle' }));

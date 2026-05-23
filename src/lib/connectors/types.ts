@@ -16,6 +16,7 @@ export interface RawSourceResult {
   geography: string;
   website: string | null;
   corpusCompanyId?: string;
+  sourceUrl?: string;
   prewrittenProfile?: {
     problem: string;
     customer: string;

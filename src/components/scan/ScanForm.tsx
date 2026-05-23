@@ -27,6 +27,10 @@ export function ScanForm() {
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
 
+  // Detect a URL in the paste textarea so we can show a small live indicator.
+  const trimmedRaw = rawInput.trim();
+  const detectedUrl = /^https?:\/\/\S+$/i.test(trimmedRaw) ? trimmedRaw : null;
+
   useEffect(() => {
     let cancelled = false;
     fetch('/api/corpora')
@@ -129,6 +133,7 @@ export function ScanForm() {
       <ScanProgress
         mode={mode}
         count={mode === 'search' ? selectedCorpus?.companyCount : undefined}
+        urlBeingFetched={mode === 'analyze' && analyzeSubMode === 'paste' ? detectedUrl : null}
       />
     );
   }
@@ -192,12 +197,14 @@ export function ScanForm() {
               <textarea
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
-                placeholder="Paste website copy, article text, product launch announcement, founder bio, job posting, or any other content about the company..."
+                placeholder="Paste a company URL (https://...), website copy, article text, founder bio, launch announcement — anything works."
                 rows={9}
                 className="w-full max-w-3xl bg-white border border-[#e8e2d4] px-4 py-3 font-mono text-[12px] text-[#1a1816] placeholder:text-[#908874] focus:outline-none focus:border-[#1a1816] resize-none"
               />
               <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-[#6b6358]">
-                Any format — AI extracts the structured company profile from whatever you paste.
+                {detectedUrl
+                  ? <>URL detected · we&apos;ll fetch <span className="normal-case tracking-normal text-[#1a1816] font-medium">{detectedUrl}</span> via Tavily → You.com → Jina Reader.</>
+                  : <>Paste raw text OR a URL. URLs are fetched via Tavily, You.com, or Jina automatically.</>}
               </p>
             </>
           ) : (

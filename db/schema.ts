@@ -130,6 +130,7 @@ export function initSchema() {
   ensureColumn('notes_log', 'author', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('tasks', 'createdBy', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('sourcing_memos', 'generatedBy', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn('companies', 'sourceUrl', 'TEXT');
   migrateThesisFitUniqueness();
 
   // Backfill empty author fields with the default user.

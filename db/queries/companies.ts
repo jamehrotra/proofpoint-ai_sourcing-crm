@@ -13,6 +13,7 @@ export interface CompanyRow {
   sourceType: string;
   scanId: string | null;
   corpusCompanyId: string | null;
+  sourceUrl: string | null;
   createdAt: string;
 }
 
@@ -122,11 +123,18 @@ export function getCompanyByCorpusCompanyId(corpusCompanyId: string): CompanyRow
   return db.prepare('SELECT * FROM companies WHERE corpusCompanyId = ?').get(corpusCompanyId) as CompanyRow | undefined;
 }
 
+export function getCompanyBySourceUrl(sourceUrl: string): CompanyRow | undefined {
+  const db = getDb();
+  return db
+    .prepare('SELECT * FROM companies WHERE sourceUrl = ? ORDER BY createdAt DESC LIMIT 1')
+    .get(sourceUrl) as CompanyRow | undefined;
+}
+
 export function insertCompany(company: CompanyRow): void {
   const db = getDb();
   db.prepare(`
-    INSERT INTO companies (id, name, sector, workflowCategory, stage, geography, website, description, status, sourceType, scanId, corpusCompanyId, createdAt)
-    VALUES (@id, @name, @sector, @workflowCategory, @stage, @geography, @website, @description, @status, @sourceType, @scanId, @corpusCompanyId, @createdAt)
+    INSERT INTO companies (id, name, sector, workflowCategory, stage, geography, website, description, status, sourceType, scanId, corpusCompanyId, sourceUrl, createdAt)
+    VALUES (@id, @name, @sector, @workflowCategory, @stage, @geography, @website, @description, @status, @sourceType, @scanId, @corpusCompanyId, @sourceUrl, @createdAt)
   `).run(company);
 }
 

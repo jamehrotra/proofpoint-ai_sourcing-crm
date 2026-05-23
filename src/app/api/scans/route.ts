@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { insertScan } from '../../../../db/queries/scans';
-import { insertCompany, getCompanyByCorpusCompanyId, updateCompanyStatus } from '../../../../db/queries/companies';
-import { insertProfile } from '../../../../db/queries/aiProfiles';
+import {
+  insertCompany,
+  getCompanyByCorpusCompanyId,
+  getCompanyBySourceUrl,
+  updateCompanyStatus,
+} from '../../../../db/queries/companies';
+import { insertProfile, getProfileByCompanyId } from '../../../../db/queries/aiProfiles';
 import { upsertFit } from '../../../../db/queries/thesisFit';
 import { CorpusConnector } from '../../../lib/connectors/seed';
 import { scoreThesisFit } from '../../../lib/ai/score';
 import { extractProfile } from '../../../lib/ai/extract';
+import { summarizeCompanyDescription } from '../../../lib/ai/summarize';
+import { webChain, looksLikeUrl } from '../../../lib/web/chain';
 import type { RawSourceResult } from '../../../lib/connectors/types';
 
 const SearchScanSchema = z.object({
@@ -179,6 +186,29 @@ async function runAnalyzeScan(input: { mode: 'analyze'; sector: string; workflow
   const scanId = nanoid();
   const now = new Date().toISOString();
 
+  // If the user pasted a URL, fetch it via the web provider chain
+  // (Tavily -> You.com -> Jina) and substitute the extracted page text.
+  let textForExtraction = rawInput;
+  let fetchedFrom: string | null = null;
+  const fetchWarnings: string[] = [];
+  const trimmed = rawInput.trim();
+  if (looksLikeUrl(trimmed)) {
+    const { result, attempts } = await webChain.fetchUrl(trimmed);
+    if (!result) {
+      const detail = attempts.map((a) => `${a.provider}: ${a.error}`).join(' | ');
+      return NextResponse.json(
+        { error: 'Could not fetch the URL with any provider', detail },
+        { status: 502 }
+      );
+    }
+    textForExtraction = result.text;
+    fetchedFrom = `${result.provider} (${result.url})`;
+    // Surface anything earlier in the chain that failed, for debugging
+    for (const a of attempts) {
+      fetchWarnings.push(`Web fetch fallback: ${a.provider} failed (${a.error})`);
+    }
+  }
+
   insertScan({
     id: scanId,
     corpusId: null,
@@ -186,26 +216,37 @@ async function runAnalyzeScan(input: { mode: 'analyze'; sector: string; workflow
     workflowCategory,
     thesisPrompt,
     mode: 'analyze',
-    rawInput,
+    rawInput: fetchedFrom ? `[URL: ${trimmed} via ${fetchedFrom}]\n\n${textForExtraction.slice(0, 2000)}` : rawInput,
     createdAt: now,
   });
 
   let extracted;
   try {
-    extracted = await extractProfile(rawInput);
+    extracted = await extractProfile(textForExtraction);
   } catch (err) {
     const error = err as Error;
     return NextResponse.json({ error: 'Profile extraction failed', detail: error.message }, { status: 502 });
   }
 
+  // AI-clean description for the dossier. Falls back to a raw text slice
+  // if the summarizer call fails for any reason — never block the scan.
+  let cleanDescription: string;
+  try {
+    cleanDescription = await summarizeCompanyDescription(extracted.companyName, textForExtraction);
+  } catch (err) {
+    console.error('summarizeCompanyDescription failed:', (err as Error).message);
+    cleanDescription = stripMarkdownNoise(textForExtraction).slice(0, 400);
+  }
+
   const source: RawSourceResult = {
     name: extracted.companyName,
-    description: rawInput.slice(0, 500),
+    description: cleanDescription,
     sector: extracted.sector ?? sector,
     workflowCategory: extracted.workflowCategory ?? workflowCategory,
     stage: extracted.stageEstimate ?? 'Unknown',
     geography: 'Unknown',
-    website: null,
+    website: looksLikeUrl(trimmed) ? trimmed : null,
+    sourceUrl: looksLikeUrl(trimmed) ? trimmed : undefined,
     prewrittenProfile: {
       problem: extracted.problem,
       customer: extracted.customer,
@@ -219,7 +260,13 @@ async function runAnalyzeScan(input: { mode: 'analyze'; sector: string; workflow
   };
 
   const result = await evaluateAndStore([source], thesisPrompt, scanId, now);
-  return NextResponse.json({ scanId, ...result });
+  const mergedWarnings = [...fetchWarnings, ...result.warnings];
+  return NextResponse.json({
+    scanId,
+    ...result,
+    warnings: mergedWarnings,
+    fetchedFrom,
+  });
 }
 
 async function evaluateAndStore(
@@ -258,6 +305,7 @@ async function evaluateAndStore(
             sourceType: 'corpus',
             scanId,
             corpusCompanyId: source.corpusCompanyId,
+            sourceUrl: null,
             createdAt: now,
           });
 
@@ -277,6 +325,28 @@ async function evaluateAndStore(
           });
           profileForScoring = profile;
         }
+      } else if (source.sourceUrl && getCompanyBySourceUrl(source.sourceUrl)) {
+        // Dedupe: company with this sourceUrl already exists. Reuse it and
+        // simply add a new thesis-fit (multi-fit feature). Profile is not
+        // overwritten — Score History card shows the evolution.
+        const existing = getCompanyBySourceUrl(source.sourceUrl)!;
+        companyId = existing.id;
+        const existingProfile = getProfileByCompanyId(companyId);
+        if (existingProfile) {
+          profileForScoring = {
+            problem: existingProfile.problem,
+            customer: existingProfile.customer,
+            aiUseCase: existingProfile.aiUseCase,
+            dataMoatPotential: existingProfile.dataMoatPotential,
+            businessModel: existingProfile.businessModel,
+            fundingStage: existingProfile.fundingStage,
+            competitiveLandscape: existingProfile.competitiveLandscape,
+            risks: JSON.parse(existingProfile.risks as string),
+          };
+        } else {
+          // Edge case: company exists but profile doesn't. Fall back to source profile.
+          profileForScoring = source.prewrittenProfile!;
+        }
       } else {
         companyId = nanoid();
         const profile = source.prewrittenProfile!;
@@ -293,6 +363,7 @@ async function evaluateAndStore(
           sourceType: 'ai-extracted',
           scanId,
           corpusCompanyId: null,
+          sourceUrl: source.sourceUrl ?? null,
           createdAt: now,
         });
         insertProfile({
@@ -342,4 +413,18 @@ async function evaluateAndStore(
   }
 
   return { surfacedCount, passedCount, processedCount, warnings };
+}
+
+/**
+ * Quick fallback cleaner for raw fetched page text when the AI summarizer fails.
+ * Strips markdown image syntax, link URLs, and collapses whitespace.
+ */
+function stripMarkdownNoise(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // ![alt](url)
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // [text](url) -> text
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/[#*_`]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
