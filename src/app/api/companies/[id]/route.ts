@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCompanyById } from '../../../../../db/queries/companies';
+import { getCompanyById, deleteCompanyCascade } from '../../../../../db/queries/companies';
 import { getProfileByCompanyId } from '../../../../../db/queries/aiProfiles';
 import { getFitByCompanyId } from '../../../../../db/queries/thesisFit';
 import { getReviewByCompanyId } from '../../../../../db/queries/reviewDecisions';
@@ -50,5 +50,23 @@ export async function GET(
   } catch (error) {
     console.error('GET /api/companies/:id error:', error);
     return NextResponse.json({ error: 'Failed to fetch company' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const company = getCompanyById(id);
+    if (!company) {
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+    }
+    deleteCompanyCascade(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('DELETE /api/companies/:id error:', error);
+    return NextResponse.json({ error: 'Failed to delete company' }, { status: 500 });
   }
 }

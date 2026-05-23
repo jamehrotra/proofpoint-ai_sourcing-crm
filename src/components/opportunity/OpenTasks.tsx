@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, RotateCcw, X } from 'lucide-react';
+import { displayNameForUsername } from '@/lib/auth';
 import type { TaskRow } from '../../../db/queries/tasks';
 
 interface OpenTasksProps {
@@ -64,7 +65,7 @@ export function OpenTasks({ tasks }: OpenTasksProps) {
               <div className="flex-1 pt-0.5">
                 <p className="font-serif text-[15px] text-[#1a1816] leading-[1.55]">{task.description}</p>
                 <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#908874] mt-1">
-                  Added {formatDate(task.createdAt)}
+                  Added {formatDate(task.createdAt)} · {displayNameForUsername(task.createdBy)}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -101,7 +102,7 @@ export function OpenTasks({ tasks }: OpenTasksProps) {
                 <div className="flex-1 pt-0.5">
                   <p className="font-serif text-[14px] text-[#908874] line-through leading-[1.55]">{task.description}</p>
                   <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#908874] mt-1">
-                    Done {task.completedAt ? formatDate(task.completedAt) : ''}
+                    Done {task.completedAt ? formatDate(task.completedAt) : ''} · added by {displayNameForUsername(task.createdBy)}
                   </p>
                 </div>
                 <button

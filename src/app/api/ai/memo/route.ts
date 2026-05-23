@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { nanoid } from 'nanoid';
 import { getCompanyById } from '../../../../../db/queries/companies';
 import { getProfileByCompanyId } from '../../../../../db/queries/aiProfiles';
 import { getFitByCompanyId } from '../../../../../db/queries/thesisFit';
+import { upsertMemo, getMemoByCompanyId } from '../../../../../db/queries/memos';
 import { generateMemo } from '../../../../lib/ai/memo';
+import { getUsernameFromRequest } from '../../../../lib/session';
 import type { AIProfile, ThesisFitAnalysis } from '../../../../lib/types';
 
 const RequestSchema = z.object({
@@ -52,7 +55,18 @@ export async function POST(request: NextRequest) {
       thesisFit
     );
 
-    return NextResponse.json({ memo });
+    const now = new Date().toISOString();
+    const existing = getMemoByCompanyId(companyId);
+    const generatedBy = getUsernameFromRequest(request);
+    upsertMemo({
+      id: existing?.id ?? nanoid(),
+      companyId,
+      markdown: memo,
+      generatedAt: now,
+      generatedBy,
+    });
+
+    return NextResponse.json({ memo, generatedAt: now, generatedBy });
   } catch (error) {
     const err = error as Error;
     if (err.message?.includes('rate_limit') || err.message?.includes('429')) {

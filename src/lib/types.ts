@@ -2,7 +2,7 @@ export type WorkflowStatus = 'New' | 'Reviewing' | 'Priority' | 'Follow-Up' | 'P
 export type AIRecommendation = 'Priority' | 'Watch' | 'Pass';
 export type FitLabel = 'High Fit' | 'Medium Fit' | 'Low Fit' | 'Unscored';
 export type ScanMode = 'search' | 'analyze';
-export type SourceType = 'seed' | 'ai-extracted';
+export type SourceType = 'seed' | 'ai-extracted' | 'corpus';
 
 export interface Company {
   id: string;

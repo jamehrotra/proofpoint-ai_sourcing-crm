@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { getCompanyById, updateCompanyStatus } from '../../../../../db/queries/companies';
 import { upsertReview } from '../../../../../db/queries/reviewDecisions';
-import { insertTask } from '../../../../../db/queries/tasks';
 
+/**
+ * Status-only update. Tasks and journal notes are written via dedicated endpoints
+ * (POST /api/tasks, POST /api/notes) so each reviewer action is independent.
+ */
 const ReviewSchema = z.object({
-  reviewerNotes: z.string().default(''),
   status: z.enum(['New', 'Reviewing', 'Priority', 'Follow-Up', 'Pass']),
-  nextStep: z.string().default(''),
   aiRecommendation: z.enum(['Priority', 'Watch', 'Pass']).nullable().optional(),
 });
 
@@ -29,35 +30,21 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid request body', details: result.error.message }, { status: 400 });
     }
 
-    const { reviewerNotes, status, nextStep, aiRecommendation } = result.data;
-    const trimmedNextStep = nextStep.trim();
+    const { status, aiRecommendation } = result.data;
 
     upsertReview({
       id: nanoid(),
       companyId,
-      reviewerNotes,
+      reviewerNotes: '',
       status,
-      nextStep: '', // We're storing this as a task now, not on the review row
+      nextStep: '',
       aiRecommendation: aiRecommendation ?? null,
       updatedAt: new Date().toISOString(),
     });
 
     updateCompanyStatus(companyId, status);
 
-    let createdTaskId: string | null = null;
-    if (trimmedNextStep.length > 0) {
-      createdTaskId = nanoid();
-      insertTask({
-        id: createdTaskId,
-        companyId,
-        description: trimmedNextStep,
-        done: 0,
-        createdAt: new Date().toISOString(),
-        completedAt: null,
-      });
-    }
-
-    return NextResponse.json({ success: true, status, taskCreated: createdTaskId !== null });
+    return NextResponse.json({ success: true, status });
   } catch (error) {
     console.error('PATCH /api/review/:companyId error:', error);
     return NextResponse.json({ error: 'Failed to save review' }, { status: 500 });

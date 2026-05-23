@@ -7,7 +7,8 @@ import { ChevronUp, ChevronDown, ArrowRight } from 'lucide-react';
 import { FitBadge } from './FitBadge';
 import { StatusBadge } from './StatusBadge';
 import { cn } from '@/lib/utils';
-import type { CompanyWithFit } from '@/lib/types';
+import { isOverride } from '@/lib/override';
+import type { CompanyWithFit, AIRecommendation, WorkflowStatus } from '@/lib/types';
 
 interface QueueTableProps {
   companies: CompanyWithFit[];
@@ -77,8 +78,8 @@ export function QueueTable({ companies, view }: QueueTableProps) {
             <Th label="Workflow" />
             <Th label="Stage" />
             <ThSort label="AI Fit" col="fitScore" current={currentSort} onClick={toggleSort} SortIcon={SortIcon} />
-            <Th label="Recommendation" />
-            <ThSort label="Status" col="status" current={currentSort} onClick={toggleSort} SortIcon={SortIcon} />
+            <Th label="AI Verdict" />
+            <ThSort label="Your Status" col="status" current={currentSort} onClick={toggleSort} SortIcon={SortIcon} />
             <ThSort label="Added" col="createdAt" current={currentSort} onClick={toggleSort} SortIcon={SortIcon} />
             {view === 'passed' && <Th label="" />}
           </tr>
@@ -144,7 +145,16 @@ function CompanyRow({ company, view }: { company: CompanyWithFit; view: 'pipelin
           <span className="text-[12px] text-[#908874]">—</span>
         )}
       </td>
-      <td className="py-5 pr-6"><StatusBadge status={company.status} /></td>
+      <td className="py-5 pr-6">
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatusBadge status={company.status} />
+          {isOverride(company.recommendation as AIRecommendation | null, company.status as WorkflowStatus) && (
+            <span className="font-mono text-[9px] uppercase tracking-[0.1em] font-semibold border border-[#1a1816] bg-[#1a1816] text-[#faf7f2] rounded-sm px-1.5 py-[1px]">
+              Override
+            </span>
+          )}
+        </div>
+      </td>
       <td className="py-5 font-mono text-[10px] uppercase tracking-[0.08em] text-[#6b6358]">
         {formatDateShort(company.createdAt)}
       </td>

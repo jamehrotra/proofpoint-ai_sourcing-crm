@@ -3,16 +3,21 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { getCompanyById } from '../../../../db/queries/companies';
 import { getProfileByCompanyId } from '../../../../db/queries/aiProfiles';
-import { getFitByCompanyId } from '../../../../db/queries/thesisFit';
+import { getFitByCompanyId, getAllFitsByCompanyId } from '../../../../db/queries/thesisFit';
 import { getReviewByCompanyId } from '../../../../db/queries/reviewDecisions';
 import { getTasksForCompany } from '../../../../db/queries/tasks';
+import { getMemoByCompanyId } from '../../../../db/queries/memos';
+import { getNotesForCompany } from '../../../../db/queries/notesLog';
 import { PageShell } from '@/components/layout/PageShell';
 import { CompanyHeader } from '@/components/opportunity/CompanyHeader';
+import { VerdictBar } from '@/components/opportunity/VerdictBar';
 import { AIProfileSection } from '@/components/opportunity/AIProfileSection';
 import { ThesisFitSection } from '@/components/opportunity/ThesisFitSection';
+import { ScoreHistory } from '@/components/opportunity/ScoreHistory';
 import { ReviewPanel } from '@/components/opportunity/ReviewPanel';
 import { MemoSection } from '@/components/opportunity/MemoSection';
 import { OpenTasks } from '@/components/opportunity/OpenTasks';
+import { NotesLog } from '@/components/opportunity/NotesLog';
 import type { AIProfile, ThesisFitAnalysis, ReviewDecision, Company } from '@/lib/types';
 
 export default async function OpportunityPage({
@@ -33,7 +38,11 @@ export default async function OpportunityPage({
 
   const profileRow = getProfileByCompanyId(id);
   const fitRow = getFitByCompanyId(id);
+  const allFitRows = getAllFitsByCompanyId(id);
   const reviewRow = getReviewByCompanyId(id);
+  const memoRow = getMemoByCompanyId(id);
+  const tasks = getTasksForCompany(id);
+  const notes = getNotesForCompany(id);
 
   const aiProfile: AIProfile | null = profileRow
     ? { ...profileRow, risks: JSON.parse(profileRow.risks) }
@@ -68,6 +77,12 @@ export default async function OpportunityPage({
 
       <CompanyHeader company={company} />
 
+      <VerdictBar
+        aiRecommendation={thesisFit?.recommendation ?? null}
+        aiFitScore={thesisFit?.fitScore ?? null}
+        humanStatus={company.status}
+      />
+
       {aiProfile ? (
         <AIProfileSection profile={aiProfile} />
       ) : (
@@ -78,7 +93,17 @@ export default async function OpportunityPage({
       )}
 
       {thesisFit ? (
-        <ThesisFitSection fit={thesisFit} />
+        <>
+          <ThesisFitSection fit={thesisFit} companyId={id} />
+          <ScoreHistory
+            fits={allFitRows.map((f) => ({
+              ...f,
+              recommendation: f.recommendation as ThesisFitAnalysis['recommendation'],
+              keyRisks: JSON.parse(f.keyRisks),
+              diligenceQuestions: JSON.parse(f.diligenceQuestions),
+            }))}
+          />
+        </>
       ) : (
         <EmptySection
           title="No thesis-fit analysis yet"
@@ -86,7 +111,14 @@ export default async function OpportunityPage({
         />
       )}
 
-      {thesisFit && aiProfile && <MemoSection companyId={id} />}
+      {thesisFit && aiProfile && (
+        <MemoSection
+          companyId={id}
+          initialMemo={memoRow?.markdown ?? null}
+          initialGeneratedAt={memoRow?.generatedAt ?? null}
+          initialGeneratedBy={memoRow?.generatedBy ?? null}
+        />
+      )}
 
       <ReviewPanel
         companyId={id}
@@ -94,7 +126,9 @@ export default async function OpportunityPage({
         aiRecommendation={thesisFit?.recommendation ?? null}
       />
 
-      <OpenTasks tasks={getTasksForCompany(id)} />
+      <NotesLog notes={notes} />
+
+      <OpenTasks tasks={tasks} />
     </PageShell>
   );
 }

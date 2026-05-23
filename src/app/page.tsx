@@ -13,6 +13,7 @@ interface SearchParams {
   sector?: string;
   status?: string;
   recommendation?: string;
+  scanId?: string;
   sort?: string;
   dir?: string;
 }

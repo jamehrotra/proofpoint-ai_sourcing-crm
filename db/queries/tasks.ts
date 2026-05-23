@@ -7,6 +7,7 @@ export interface TaskRow {
   done: number;
   createdAt: string;
   completedAt: string | null;
+  createdBy: string;
 }
 
 export interface TaskWithCompany extends TaskRow {
@@ -18,8 +19,8 @@ export interface TaskWithCompany extends TaskRow {
 export function insertTask(task: TaskRow): void {
   const db = getDb();
   db.prepare(`
-    INSERT INTO tasks (id, companyId, description, done, createdAt, completedAt)
-    VALUES (@id, @companyId, @description, @done, @createdAt, @completedAt)
+    INSERT INTO tasks (id, companyId, description, done, createdAt, completedAt, createdBy)
+    VALUES (@id, @companyId, @description, @done, @createdAt, @completedAt, @createdBy)
   `).run(task);
 }
 

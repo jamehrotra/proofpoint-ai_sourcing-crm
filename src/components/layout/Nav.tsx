@@ -1,14 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
-export function Nav() {
+interface NavProps {
+  currentUserDisplayName: string;
+  currentUsername: string;
+}
+
+export function Nav({ currentUserDisplayName, currentUsername }: NavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [openTaskCount, setOpenTaskCount] = useState<number | null>(null);
-  const monthLabel = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).toUpperCase();
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,6 +29,24 @@ export function Nav() {
     return () => { cancelled = true; };
   }, [pathname]);
 
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  const initials = currentUserDisplayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('');
+
   return (
     <nav className="border-b border-[#e8e2d4] bg-[#faf7f2]">
       <div className="mx-auto max-w-7xl px-8 flex items-center justify-between h-14">
@@ -36,17 +60,28 @@ export function Nav() {
           <div className="flex items-center gap-1 ml-2">
             <NavLink href="/" active={pathname === '/'} label="Pipeline" />
             <NavLink href="/scan" active={pathname === '/scan'} label="New Scan" />
-            <NavLink
-              href="/todo"
-              active={pathname === '/todo'}
-              label="To Do"
-              badge={openTaskCount}
-            />
+            <NavLink href="/todo" active={pathname === '/todo'} label="To Do" badge={openTaskCount} />
+            <NavLink href="/history" active={pathname === '/history'} label="History" />
           </div>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#6b6358]">
-          Proofpoint Capital · {monthLabel}
-        </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-[#0f1e3a] text-[#faf7f2] flex items-center justify-center font-mono text-[10px] font-semibold tracking-wide">
+              {initials || '·'}
+            </div>
+            <div className="flex flex-col leading-tight">
+              <span className="font-serif text-[13px] text-[#1a1816] tracking-tight">{currentUserDisplayName}</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#6b6358]">@{currentUsername}</span>
+            </div>
+          </div>
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#6b6358] hover:text-[#6b1f2a] transition-colors disabled:opacity-50"
+          >
+            {signingOut ? 'Signing out...' : 'Sign Out'}
+          </button>
+        </div>
       </div>
     </nav>
   );

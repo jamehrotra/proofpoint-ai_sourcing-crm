@@ -105,6 +105,15 @@ export function ScanForm() {
         setWarnings(data.warnings);
       }
 
+      if (data.processedCount === 0) {
+        setError(
+          mode === 'search'
+            ? 'No companies in the selected corpus matched these filters. Try widening Sector or Workflow Category, or pick another corpus.'
+            : 'AI could not extract a company from this material. Try a longer, more descriptive source.'
+        );
+        return;
+      }
+
       const targetView = data.surfacedCount > 0 ? 'pipeline' : 'passed';
       router.push(`/?view=${targetView}`);
     } catch {

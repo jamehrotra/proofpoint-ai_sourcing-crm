@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
+import { RemoveCompanyButton } from './RemoveCompanyButton';
 import type { Company } from '@/lib/types';
 
 interface CompanyHeaderProps {
@@ -7,10 +8,18 @@ interface CompanyHeaderProps {
 }
 
 export function CompanyHeader({ company }: CompanyHeaderProps) {
+  const sourceLabel =
+    company.sourceType === 'corpus' ? 'Sourcing Corpus'
+      : company.sourceType === 'ai-extracted' ? 'AI Extracted'
+      : 'Seed';
+
   return (
     <article className="border-b-2 border-[#1a1816] pb-8 mb-8">
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#6b1f2a] mb-3">
-        Company Dossier · {company.sector}
+      <div className="flex items-center justify-between mb-3">
+        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#6b1f2a]">
+          Company Dossier · {company.sector}
+        </div>
+        <RemoveCompanyButton companyId={company.id} companyName={company.name} />
       </div>
       <div className="flex items-start justify-between gap-8 mb-4">
         <h1 className="font-serif text-[44px] font-normal text-[#1a1816] tracking-[-0.02em] leading-[1]">
@@ -39,7 +48,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
         <Field label="Workflow" value={company.workflowCategory} />
         <Field label="Stage" value={company.stage} />
         <Field label="Geography" value={company.geography} />
-        <Field label="Source" value={company.sourceType === 'seed' ? 'Sourcing Corpus' : 'AI Extracted'} />
+        <Field label="Source" value={sourceLabel} />
       </dl>
     </article>
   );

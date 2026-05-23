@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import { insertTask, getAllTasks } from '../../../../db/queries/tasks';
+import { getUsernameFromRequest } from '../../../lib/session';
 
 const CreateTaskSchema = z.object({
   companyId: z.string().min(1),
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid task', details: parsed.error.message }, { status: 400 });
     }
 
+    const createdBy = getUsernameFromRequest(request);
+
     const task = {
       id: nanoid(),
       companyId: parsed.data.companyId,
@@ -33,6 +36,7 @@ export async function POST(request: NextRequest) {
       done: 0,
       createdAt: new Date().toISOString(),
       completedAt: null,
+      createdBy,
     };
 
     insertTask(task);

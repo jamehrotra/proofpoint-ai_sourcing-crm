@@ -1,9 +1,11 @@
 import { FitBadge } from '@/components/dashboard/FitBadge';
+import { DiligenceQuestions } from './DiligenceQuestions';
 import { cn } from '@/lib/utils';
 import type { ThesisFitAnalysis } from '@/lib/types';
 
 interface ThesisFitSectionProps {
   fit: ThesisFitAnalysis;
+  companyId: string;
 }
 
 const REC_STYLES: Record<string, string> = {
@@ -12,7 +14,7 @@ const REC_STYLES: Record<string, string> = {
   Pass: 'text-[#6b1f2a] border-[#6b1f2a] bg-[#6b1f2a]/[0.06]',
 };
 
-export function ThesisFitSection({ fit }: ThesisFitSectionProps) {
+export function ThesisFitSection({ fit, companyId }: ThesisFitSectionProps) {
   return (
     <section className="border border-[#e8e2d4] bg-white p-8 mb-6">
       <div className="flex items-baseline gap-3 mb-6 pb-3 border-b border-[#1a1816]">
@@ -58,17 +60,7 @@ export function ThesisFitSection({ fit }: ThesisFitSectionProps) {
             ))}
           </ol>
         </div>
-        <div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#6b6358] mb-3">Diligence Questions</div>
-          <ol className="space-y-2">
-            {fit.diligenceQuestions.map((q, i) => (
-              <li key={i} className="flex items-start gap-3 text-[14px] text-[#1a1816] leading-relaxed">
-                <span className="font-mono text-[10px] text-[#6b1f2a] mt-1 shrink-0 w-5">{String(i + 1).padStart(2, '0')}</span>
-                <span>{q}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
+        <DiligenceQuestions companyId={companyId} questions={fit.diligenceQuestions} />
       </div>
 
       {fit.nextStep && (
