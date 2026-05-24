@@ -11,7 +11,7 @@ export function initSchema() {
       sector TEXT NOT NULL,
       workflowCategory TEXT NOT NULL,
       thesisPrompt TEXT NOT NULL,
-      mode TEXT NOT NULL CHECK(mode IN ('search', 'analyze')),
+      mode TEXT NOT NULL CHECK(mode IN ('search', 'analyze', 'web')),
       rawInput TEXT,
       createdAt TEXT NOT NULL
     );
@@ -131,6 +131,7 @@ export function initSchema() {
   ensureColumn('tasks', 'createdBy', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('sourcing_memos', 'generatedBy', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('companies', 'sourceUrl', 'TEXT');
+  migrateSourcingScansMode();
   migrateThesisFitUniqueness();
 
   // Backfill empty author fields with the default user.
@@ -153,6 +154,35 @@ function ensureColumn(table: string, column: string, columnType: string): void {
  * storing multiple fit analyses per company (one per thesis). Detect and rebuild
  * the table without the UNIQUE if needed, then add a composite uniqueness index.
  */
+/**
+ * Older DBs created sourcing_scans with mode CHECK IN ('search','analyze').
+ * Widen to include 'web' if needed.
+ */
+function migrateSourcingScansMode(): void {
+  const db = getDb();
+  const tableInfo = db
+    .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='sourcing_scans'`)
+    .get() as { sql: string } | undefined;
+  if (!tableInfo) return;
+  if (tableInfo.sql.includes("'web'")) return; // already migrated
+
+  db.exec(`
+    CREATE TABLE sourcing_scans_new (
+      id TEXT PRIMARY KEY,
+      corpusId TEXT,
+      sector TEXT NOT NULL,
+      workflowCategory TEXT NOT NULL,
+      thesisPrompt TEXT NOT NULL,
+      mode TEXT NOT NULL CHECK(mode IN ('search', 'analyze', 'web')),
+      rawInput TEXT,
+      createdAt TEXT NOT NULL
+    );
+    INSERT INTO sourcing_scans_new SELECT * FROM sourcing_scans;
+    DROP TABLE sourcing_scans;
+    ALTER TABLE sourcing_scans_new RENAME TO sourcing_scans;
+  `);
+}
+
 function migrateThesisFitUniqueness(): void {
   const db = getDb();
   const tableInfo = db

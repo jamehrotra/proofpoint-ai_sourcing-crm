@@ -61,7 +61,11 @@ export default async function HistoryPage() {
                     </td>
                     <td className="py-5 pr-6 align-top">
                       <span className="font-mono text-[10px] uppercase tracking-[0.1em] font-medium border border-[#e8e2d4] bg-[#f5f1e8] text-[#1a1816] rounded-sm px-2 py-[3px]">
-                        {scan.mode === 'search' ? 'Search Corpus' : 'Analyze Data'}
+                        {scan.mode === 'search'
+                          ? 'Search Corpus'
+                          : scan.mode === 'analyze'
+                            ? 'Analyze Data'
+                            : 'Search the Web'}
                       </span>
                     </td>
                     <td className="py-5 pr-6 text-[13px] text-[#1a1816] align-top">

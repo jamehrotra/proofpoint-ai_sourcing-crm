@@ -67,7 +67,18 @@ The product covers all six steps in the assignment workflow:
 AI reasons over a curated **sourcing corpus** — a pre-seeded set of real Vertical AI companies — and scores each one against your thesis. The pipeline view shows what AI rated **Priority** or **Watch**; everything AI rated **Pass** lands in a separate **Passed by AI** tab where you can review and override.
 
 ### Analyze Given Data
-Paste raw text (article, website copy, founder bio) **OR upload a PDF** (pitch deck, one-pager, market report). AI extracts a structured company profile and scores it against your thesis. Text-based PDFs are supported via server-side `pdf-parse`; scanned-image PDFs cannot be extracted.
+Paste raw text (article, website copy, founder bio) **OR a company URL** (auto-detected and fetched via Tavily → You.com → Jina chain) **OR upload a PDF** (pitch deck, one-pager, market report). AI extracts a structured company profile and scores it against your thesis. Text-based PDFs are supported via server-side `pdf-parse`; scanned-image PDFs cannot be extracted.
+
+### Search the Web *(live discovery mode)*
+Type a thesis, set an optional sector/workflow, choose a scan size (5–20 companies), and AI does the rest:
+
+1. **Generates** 3-5 targeted search queries from your thesis (Claude)
+2. **Searches** the live web via Tavily, biased toward VC + tech press sources (YC, a16z, Crunchbase, TechCrunch, Forbes, etc.)
+3. **Classifies** every result as company-site, listicle, article, or noise (heuristic)
+4. **Expands** roundup articles by reading them with Claude and pulling out company names
+5. **Fetches + extracts + scores** each candidate, streaming results to the UI live — each company pops into the Pipeline as it's scored
+
+The whole scan takes 40 seconds (5 companies) to 3 minutes (20 companies). Progress streams via NDJSON so you watch every step happen.
 
 ---
 
