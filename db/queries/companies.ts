@@ -130,6 +130,32 @@ export function getCompanyBySourceUrl(sourceUrl: string): CompanyRow | undefined
     .get(sourceUrl) as CompanyRow | undefined;
 }
 
+/**
+ * Find an existing company by approximate name match. Normalizes both sides
+ * (lowercase, strip punctuation and common suffixes like "AI", "Inc", "Labs")
+ * and matches on equality. Returns the most-recent match.
+ *
+ * Used by web scans to avoid creating dupes when the same company surfaces
+ * under multiple URLs (e.g. their own site + a TechCrunch article).
+ */
+export function getCompanyByApproximateName(name: string): CompanyRow | undefined {
+  const db = getDb();
+  const target = normalizeCompanyName(name);
+  if (target.length < 2) return undefined;
+  const all = db.prepare('SELECT * FROM companies').all() as CompanyRow[];
+  return all.find((row) => normalizeCompanyName(row.name) === target);
+}
+
+function normalizeCompanyName(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[’']/g, '')          // smart and straight quotes
+    .replace(/[.,_]/g, '')              // punctuation
+    .replace(/\b(ai|labs?|inc|corp|co|llc|ltd|technologies|tech|health|hq|the|io)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function insertCompany(company: CompanyRow): void {
   const db = getDb();
   db.prepare(`

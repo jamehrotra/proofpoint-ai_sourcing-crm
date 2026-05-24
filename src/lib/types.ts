@@ -33,6 +33,21 @@ export interface AIProfile {
   extractedAt: string;
 }
 
+export type DimensionVerdict = 'Strong' | 'Moderate' | 'Weak';
+
+export interface ThesisDimensionItem {
+  verdict: DimensionVerdict;
+  note: string;
+}
+
+export interface ThesisDimensions {
+  sectorFit: ThesisDimensionItem;
+  workflowOwnership: ThesisDimensionItem;
+  dataMoat: ThesisDimensionItem;
+  stageAlignment: ThesisDimensionItem;
+  aiNative: ThesisDimensionItem;
+}
+
 export interface ThesisFitAnalysis {
   id: string;
   companyId: string;
@@ -44,6 +59,10 @@ export interface ThesisFitAnalysis {
   nextStep: string;
   thesisPromptUsed: string;
   scoredAt: string;
+  /** Per-dimension verdicts. Null on older rows scored before this feature shipped. */
+  dimensions: ThesisDimensions | null;
+  /** URLs Claude evaluated to produce this score. Null on older rows. */
+  sourceUrls: string[] | null;
 }
 
 export interface ReviewDecision {
@@ -101,6 +120,7 @@ export interface ThesisFitInput {
   keyRisks: string[];
   diligenceQuestions: string[];
   nextStep: string;
+  dimensions: ThesisDimensions;
 }
 
 export interface ScanRequest {

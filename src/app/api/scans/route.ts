@@ -384,6 +384,13 @@ async function evaluateAndStore(
 
       const fitResult = await scoreThesisFit(profileForScoring, thesisPrompt);
 
+      // For corpus + analyze modes, source URLs reduce to whatever we have on the
+      // source row: corpus companies have a website, analyze-mode companies have
+      // either a URL (if the user pasted one) or no external sources at all.
+      const fitSourceUrls: string[] = [];
+      if (source.sourceUrl) fitSourceUrls.push(source.sourceUrl);
+      else if (source.website) fitSourceUrls.push(source.website);
+
       upsertFit({
         id: nanoid(),
         companyId,
@@ -395,6 +402,8 @@ async function evaluateAndStore(
         nextStep: fitResult.nextStep,
         thesisPromptUsed: thesisPrompt,
         scoredAt: now,
+        dimensionsJson: JSON.stringify(fitResult.dimensions),
+        sourceUrlsJson: JSON.stringify(fitSourceUrls),
       });
 
       updateCompanyStatus(companyId, 'New');

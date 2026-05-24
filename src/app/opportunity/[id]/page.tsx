@@ -13,6 +13,8 @@ import { CompanyHeader } from '@/components/opportunity/CompanyHeader';
 import { VerdictBar } from '@/components/opportunity/VerdictBar';
 import { AIProfileSection } from '@/components/opportunity/AIProfileSection';
 import { ThesisFitSection } from '@/components/opportunity/ThesisFitSection';
+import { ThesisDimensionsCard } from '@/components/opportunity/ThesisDimensionsCard';
+import { SourcesCard } from '@/components/opportunity/SourcesCard';
 import { ScoreHistory } from '@/components/opportunity/ScoreHistory';
 import { ReviewPanel } from '@/components/opportunity/ReviewPanel';
 import { MemoSection } from '@/components/opportunity/MemoSection';
@@ -54,6 +56,8 @@ export default async function OpportunityPage({
         recommendation: fitRow.recommendation as ThesisFitAnalysis['recommendation'],
         keyRisks: JSON.parse(fitRow.keyRisks),
         diligenceQuestions: JSON.parse(fitRow.diligenceQuestions),
+        dimensions: fitRow.dimensionsJson ? JSON.parse(fitRow.dimensionsJson) : null,
+        sourceUrls: fitRow.sourceUrlsJson ? JSON.parse(fitRow.sourceUrlsJson) : null,
       }
     : null;
 
@@ -95,12 +99,18 @@ export default async function OpportunityPage({
       {thesisFit ? (
         <>
           <ThesisFitSection fit={thesisFit} companyId={id} />
+          {thesisFit.dimensions && <ThesisDimensionsCard dimensions={thesisFit.dimensions} />}
+          {thesisFit.sourceUrls && thesisFit.sourceUrls.length > 0 && (
+            <SourcesCard urls={thesisFit.sourceUrls} />
+          )}
           <ScoreHistory
             fits={allFitRows.map((f) => ({
               ...f,
               recommendation: f.recommendation as ThesisFitAnalysis['recommendation'],
               keyRisks: JSON.parse(f.keyRisks),
               diligenceQuestions: JSON.parse(f.diligenceQuestions),
+              dimensions: f.dimensionsJson ? JSON.parse(f.dimensionsJson) : null,
+              sourceUrls: f.sourceUrlsJson ? JSON.parse(f.sourceUrlsJson) : null,
             }))}
           />
         </>

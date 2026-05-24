@@ -9,10 +9,11 @@ CRITICAL RULES:
 - Output ONLY a JSON array of strings. No preamble, no markdown fences, no trailing prose.
 - Each query is 5-12 words. Use natural search-engine language (no boolean operators, no quotes).
 - Every query must contain words that bias toward STARTUPS and toward the SPECIFIC VERTICAL — never write generic queries like "AI workflow startup" or "best AI tools".
+- Bias HEAVILY toward returning COMPANY WEBSITES, not news articles. Words like "product", "platform", "homepage", "about", or naming a specific product category surface company sites; words like "raised", "funding round", "announces" surface news articles.
 - Include at least one query that names the SECTOR explicitly (e.g. "healthcare", "biotech", "fintech", "insurtech", "legaltech").
 - Include at least one query that names a CONCRETE WORKFLOW or USE CASE the thesis is about (e.g. "claims denial", "clinical documentation", "underwriting", "drug discovery", "KYC", "prior authorization").
-- Include at least one query mentioning STAGE words: "early stage", "seed", "Series A", or "YC startup" — to filter out enterprise vendors and listicles about big companies.
-- Vary the angle across queries: one focused on the product/workflow, one on funding/stage, one on competitive landscape ("alternatives to X" or "vs Y").
+- Include at least one query mentioning STAGE words: "early stage", "seed", "Series A", or "YC startup".
+- Mix query angles: at least 3 of 5 queries should target company sites (product/platform language), at most 2 can target funding announcements.
 - NEVER use these words: "VC", "venture capital", "investor", "fund", "ecosystem". They return investor news, not companies.
 - NEVER write meta-questions like "what are the best..." — that returns articles, not company sites.
 

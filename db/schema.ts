@@ -131,6 +131,8 @@ export function initSchema() {
   ensureColumn('tasks', 'createdBy', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('sourcing_memos', 'generatedBy', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('companies', 'sourceUrl', 'TEXT');
+  ensureColumn('thesis_fit_analyses', 'dimensionsJson', 'TEXT');
+  ensureColumn('thesis_fit_analyses', 'sourceUrlsJson', 'TEXT');
   migrateSourcingScansMode();
   migrateThesisFitUniqueness();
 

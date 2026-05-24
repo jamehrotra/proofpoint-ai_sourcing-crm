@@ -5,11 +5,13 @@ import { insertScan } from '../../../../../db/queries/scans';
 import {
   insertCompany,
   getCompanyBySourceUrl,
+  getCompanyByApproximateName,
 } from '../../../../../db/queries/companies';
 import { getProfileByCompanyId, insertProfile } from '../../../../../db/queries/aiProfiles';
 import { upsertFit } from '../../../../../db/queries/thesisFit';
 import { discoverWebCandidates, type WebCandidate } from '../../../../lib/connectors/web';
 import { webChain } from '../../../../lib/web/chain';
+import { gatherCompanyEvidence } from '../../../../lib/web/companyEvidence';
 import { extractProfile } from '../../../../lib/ai/extract';
 import { scoreThesisFit } from '../../../../lib/ai/score';
 import { summarizeCompanyDescription } from '../../../../lib/ai/summarize';
@@ -158,40 +160,91 @@ export async function POST(request: NextRequest) {
             }
 
             // Will hold all the prepared data for the new-company case.
+            // descriptionPromise resolves AFTER score so the two run concurrently.
             let preparedInsert: {
               extracted: import('../../../../lib/types').AIProfileInput;
-              cleanDescription: string;
+              descriptionPromise: Promise<string>;
             } | null = null;
 
+            // Track which URLs we evaluated (used for the Sources card later)
+            let evidenceUrls: string[] = [];
+
             if (!isExisting) {
-              // 2. Fetch the URL.
+              // 2. Fetch the primary URL.
               const fetched = await webChain.fetchUrl(candidate.url);
               if (!fetched.result) {
                 throw new Error(`No provider could fetch ${candidate.url}`);
               }
-              const pageText = fetched.result.text;
+              const homepageText = fetched.result.text;
 
               // 3. Hint the extractor about what kind of source this is.
               const sourceKind: 'company-site' | 'news-article' =
                 candidate.source === 'article-url' ? 'news-article' : 'company-site';
 
-              const extractInput = candidate.blurb
-                ? `${candidate.blurb}\n\n${pageText}`
-                : pageText;
-              const extracted = await extractProfile(extractInput, sourceKind);
+              // First-pass extract on JUST the homepage to learn the company name.
+              const firstPassInput = candidate.blurb
+                ? `${candidate.blurb}\n\n${homepageText}`
+                : homepageText;
+              const extracted = await extractProfile(firstPassInput, sourceKind);
 
-              // 4. Clean description for the dossier (best-effort).
-              let cleanDescription: string;
+              // 3b. Name-based dedupe: if we already have a company by approximately
+              //     this name, short-circuit and re-use the existing profile so a
+              //     second scan source doesn't create a duplicate row.
+              const matchByName = getCompanyByApproximateName(extracted.companyName);
+              if (matchByName) {
+                const existingProfile = getProfileByCompanyId(matchByName.id);
+                if (existingProfile) {
+                  companyId = matchByName.id;
+                  isExisting = true;
+                  profileForScoring = {
+                    problem: existingProfile.problem,
+                    customer: existingProfile.customer,
+                    aiUseCase: existingProfile.aiUseCase,
+                    dataMoatPotential: existingProfile.dataMoatPotential,
+                    businessModel: existingProfile.businessModel,
+                    fundingStage: existingProfile.fundingStage,
+                    competitiveLandscape: existingProfile.competitiveLandscape,
+                    risks: JSON.parse(existingProfile.risks as string),
+                  };
+                  evidenceUrls = [candidate.url];
+                  console.log(
+                    `[web-scan] Deduped by name: "${extracted.companyName}" -> existing company ${matchByName.id}`
+                  );
+                }
+              }
+              if (isExisting) {
+                // jump past the heavy evidence gathering below
+              } else {
+
+              // 4. Multi-page evidence gathering (about / team / customers / funding news).
+              //    Best-effort: failures here are silently skipped.
+              let combinedEvidenceText = homepageText;
               try {
-                cleanDescription = await summarizeCompanyDescription(
+                const evidence = await gatherCompanyEvidence(
                   extracted.companyName,
-                  pageText
+                  candidate.url,
+                  homepageText
                 );
-              } catch {
-                cleanDescription = (candidate.blurb ?? extracted.problem).slice(0, 300);
+                combinedEvidenceText = evidence.combinedText;
+                evidenceUrls = evidence.sourceUrls;
+              } catch (err) {
+                console.error(
+                  `[web-scan] Evidence gathering failed for ${extracted.companyName}:`,
+                  (err as Error).message
+                );
+                evidenceUrls = [candidate.url];
               }
 
-              preparedInsert = { extracted, cleanDescription };
+              // 5. Clean description for the dossier (best-effort).
+              //    We don't actually need this until the insert step below, so we'll
+              //    fire it in parallel with scoring further down. For now, store the
+              //    in-flight promise on preparedInsert.
+              const descriptionPromise = summarizeCompanyDescription(
+                extracted.companyName,
+                combinedEvidenceText
+              ).catch(() => (candidate.blurb ?? extracted.problem).slice(0, 300));
+
+              preparedInsert = { extracted, descriptionPromise };
               profileForScoring = {
                 problem: extracted.problem,
                 customer: extracted.customer,
@@ -203,6 +256,7 @@ export async function POST(request: NextRequest) {
                 risks: extracted.risks,
               };
               // companyId already initialized to a fresh nanoid above.
+              } // close inner "else" from the name-dedupe short-circuit
             } else {
               // already set above
               if (!profileForScoring) throw new Error('Internal: missing profile for existing company');
@@ -213,7 +267,8 @@ export async function POST(request: NextRequest) {
 
             // 6. Commit (insert + profile + fit) atomically now that scoring succeeded.
             if (preparedInsert) {
-              const { extracted, cleanDescription } = preparedInsert;
+              const { extracted, descriptionPromise } = preparedInsert;
+              const cleanDescription = await descriptionPromise;
               insertCompany({
                 id: companyId,
                 name: extracted.companyName,
@@ -256,6 +311,8 @@ export async function POST(request: NextRequest) {
               nextStep: fit.nextStep,
               thesisPromptUsed: thesis,
               scoredAt: new Date().toISOString(),
+              dimensionsJson: JSON.stringify(fit.dimensions),
+              sourceUrlsJson: JSON.stringify(evidenceUrls.length > 0 ? evidenceUrls : [candidate.url]),
             });
 
             if (fit.recommendation === 'Pass') passedCount++;

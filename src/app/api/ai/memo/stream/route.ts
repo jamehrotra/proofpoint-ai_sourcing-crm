@@ -59,6 +59,8 @@ export async function POST(request: NextRequest) {
     keyRisks: JSON.parse(fitRow.keyRisks),
     diligenceQuestions: JSON.parse(fitRow.diligenceQuestions),
     recommendation: fitRow.recommendation as 'Priority' | 'Watch' | 'Pass',
+    dimensions: fitRow.dimensionsJson ? JSON.parse(fitRow.dimensionsJson) : null,
+    sourceUrls: fitRow.sourceUrlsJson ? JSON.parse(fitRow.sourceUrlsJson) : null,
   };
 
   const companyTyped = {

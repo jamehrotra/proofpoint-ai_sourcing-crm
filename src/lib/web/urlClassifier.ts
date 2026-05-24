@@ -4,8 +4,14 @@ export type UrlKind = 'COMPANY' | 'LISTICLE' | 'ARTICLE' | 'NOISE';
  * Publisher domains: pages from these are NOT company sites.
  * Their content is either a single-company news piece (ARTICLE),
  * a roundup/listicle, or general coverage.
+ *
+ * When adding a domain here: it should be a third-party publication,
+ * not a startup's own site. A page on these domains can still be useful
+ * (it's likely a funding-news article about ONE company) — but the
+ * extractor needs to be told it's a news article, not a homepage.
  */
 const PUBLISHER_DOMAINS = new Set([
+  // Major tech press
   'techcrunch.com',
   'forbes.com',
   'fortune.com',
@@ -19,8 +25,29 @@ const PUBLISHER_DOMAINS = new Set([
   'axios.com',
   'theverge.com',
   'fastcompany.com',
+  'tech.eu',
+  // Healthcare press
   'fiercehealthcare.com',
   'beckershospitalreview.com',
+  'modernhealthcare.com',
+  'healthcareitnews.com',
+  'healthcaredive.com',
+  // Fintech / financial press
+  'finextra.com',
+  'fintech.global',
+  'fintechfutures.com',
+  'pymnts.com',
+  'thefintechtimes.com',
+  'americanbanker.com',
+  'financialit.net',
+  'amlnetwork.org',
+  'pulse2.com',
+  // Biotech / life sciences press
+  'biopharmadive.com',
+  'fiercebiotech.com',
+  'endpts.com',
+  'statnews.com',
+  // VC + investor blogs
   'crunchbase.com',
   'producthunt.com',
   'ycombinator.com',
@@ -28,8 +55,10 @@ const PUBLISHER_DOMAINS = new Set([
   'sequoiacap.com',
   'firstround.com',
   'bvp.com',
+  'tidalvc.com',
   'medium.com',
   'substack.com',
+  // Catch-all / social
   'wikipedia.org',
   'github.com',
   'linkedin.com',

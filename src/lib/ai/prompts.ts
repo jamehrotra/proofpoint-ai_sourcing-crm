@@ -42,15 +42,59 @@ The JSON must exactly match this schema:
   "thesisFitScore": number between 0 and 100 (0 = completely misaligned, 100 = perfect thesis fit),
   "recommendation": "Priority" | "Watch" | "Pass",
   "rationale": string (2-3 sentences explaining the core thesis alignment or misalignment — be specific, reference the company's actual product and workflow),
+  "dimensions": {
+    "sectorFit":         { "verdict": "Strong" | "Moderate" | "Weak", "note": string (one short sentence) },
+    "workflowOwnership": { "verdict": "Strong" | "Moderate" | "Weak", "note": string },
+    "dataMoat":          { "verdict": "Strong" | "Moderate" | "Weak", "note": string },
+    "stageAlignment":    { "verdict": "Strong" | "Moderate" | "Weak", "note": string },
+    "aiNative":          { "verdict": "Strong" | "Moderate" | "Weak", "note": string }
+  },
   "keyRisks": string[] (3 specific risks from a Proofpoint investment perspective),
   "diligenceQuestions": string[] (3-4 specific questions a Proofpoint analyst would want answered before advancing this company),
   "nextStep": string (one concrete recommended next action, e.g. "Schedule founder call to validate payer integration depth")
 }
 
-Scoring guidance (apply to recommendation regardless of stage):
-- 75-100 → Priority: Strong thesis alignment — clear workflow ownership, sector relevance, AI-native architecture, evidence of data moat
-- 50-74 → Watch: Good fit but missing one key signal (e.g. right workflow but crowded market, or right sector but unclear data moat, or excellent thesis match but later stage than ideal)
-- 0-49 → Pass: Significant misalignment with thesis content (wrong sector with no Vertical AI tie, horizontal product, thin AI layer, no defensibility)`;
+CALIBRATION RULES (these prevent score inflation):
+- "Strong" is reserved for clear, top-decile signals with specific evidence. The DEFAULT is "Moderate".
+- A typical good company should have 1-2 Strong dimensions and 3-4 Moderate. ALL FIVE STRONG IS RARE.
+- If you find yourself marking everything Strong, you are anchoring to "the URL came back from a search so it must be a fit." Resist.
+- Be willing to mark dimensions Weak. A company that doesn't visibly own its workflow gets Weak workflowOwnership even if it's in the right sector.
+
+DIMENSION CRITERIA (apply strictly):
+
+sectorFit:
+- Strong: Company is unambiguously deep in Healthcare, Life Sciences, or Financial Services AND the product specifically serves regulated/clinical/financial workflows
+- Moderate: Adjacent to a focus sector (e.g. HR tech that sells to hospitals, or general SaaS used by banks)
+- Weak: Horizontal product that happens to have some industry-vertical customers
+
+workflowOwnership:
+- Strong: Product is the system of record for a named workflow (it RUNS the workflow, not advises on it)
+- Moderate: Product replaces a step in a workflow but humans still drive the overall process
+- Weak: Product is a tool/assistant that sits alongside the workflow
+
+dataMoat:
+- Strong: Specific evidence of proprietary outcome data (e.g. confirmed fraud labels, resolved claims, validated leads) that compounds with usage
+- Moderate: Generates usage data but defensibility is unclear or relies on third-party data
+- Weak: Mostly aggregating public/third-party data, no proprietary closed loop visible
+
+stageAlignment:
+- Strong: Pre-Seed, Seed, or Series A with clear evidence (recent funding announcement, founding date 2022+, "we just launched" language)
+- Moderate: Series B, OR stage is unclear but company looks early
+- Weak: Series C+, public company, well-known late-stage scaleup (Stripe, Plaid, etc.) — these are reference companies, not investments
+
+aiNative:
+- Strong: AI/ML is the product's reason for existence — architecture mentions agents, models, training data; founders are ex-ML researchers
+- Moderate: AI features are core but bolted onto a traditional workflow product
+- Weak: AI is a recent feature add or marketing layer over rules-based logic
+
+Each note must be a single concrete sentence using SPECIFIC EVIDENCE from the profile (mention a real product, a real funding amount, a real workflow). Generic phrases like "strong workflow play" or "good fit for the thesis" are forbidden.
+
+Scoring guidance (apply strictly to avoid inflation):
+- 85-100 → Priority: REQUIRES at least 3 Strong dimensions, including sectorFit AND (workflowOwnership OR dataMoat). Reserve for genuinely standout fits.
+- 60-84 → Watch: A real but qualified fit. Clear positives but one significant gap (later stage, narrow workflow, unclear moat, crowded market).
+- 0-59 → Pass: Material misalignment with the thesis (wrong sector, horizontal product, no defensibility), OR all five dimensions are Moderate-or-worse.
+
+A score of exactly 84 every time means you are not discriminating. Vary the score based on the actual dimension verdicts. Rough heuristic: (count of Strongs × 15) + (count of Moderates × 8). So 3 Strong + 2 Moderate ≈ 61; 5 Strong = 75-95; 1 Strong + 4 Moderate ≈ 47.`;
 
 export const MEMO_SYSTEM_PROMPT = `You are a VC associate at Proofpoint Capital writing an internal sourcing memo. Your audience is the investment team — smart, busy, and skeptical. Write clearly, concisely, and analytically. No fluff.
 
