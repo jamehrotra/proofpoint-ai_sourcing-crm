@@ -41,7 +41,7 @@ Open [http://localhost:3000](http://localhost:3000). The database initializes an
 ## Scan Modes
 
 ### Search Corpus
-AI scores every company in a curated corpus against your thesis. 20 companies run in ~45 seconds via parallel Claude calls (batch of 5 concurrent). Priority and Watch land in the Pipeline; Pass goes to the Passed-by-AI tab.
+AI scores every company in a curated corpus against your thesis. 20 companies run in ~60 seconds via parallel Claude calls (4 concurrent, respecting the API rate limit). Repeat scans with the same thesis return instantly from cache. Priority and Watch land in the Pipeline; Pass goes to the Passed-by-AI tab.
 
 ### Analyze Given Data
 Three sub-modes share the same AI pipeline:
@@ -70,7 +70,7 @@ Every company is scored on five dimensions, each rated **Strong / Moderate / Wea
 - `85–100 → Priority` requires 3+ Strong dims including Sector + (Workflow or Moat)
 - `60–84 → Watch` — real fit, one meaningful gap
 - `0–59 → Pass` — material misalignment or zero Strong dimensions
-- Score formula: Strong = 20 pts, Moderate = 10 pts, Weak = 0 pts
+- Score formula: per-dimension ranges (Strong = 18–22, Moderate = 9–13, Weak = 0–5 for core dims; slightly lower for stage/AI-native) summed to a continuous score — no fixed grid
 
 The `enforceRecommendation()` function in `src/lib/ai/score.ts` hard-corrects any Claude output that violates these rules — e.g. if Claude returns Priority but the dimensions don't qualify, it's downgraded to Watch at the code layer.
 
