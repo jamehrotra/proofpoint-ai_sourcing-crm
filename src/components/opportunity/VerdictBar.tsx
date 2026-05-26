@@ -31,46 +31,46 @@ export function VerdictBar({ aiRecommendation, aiFitScore, humanStatus }: Verdic
     : 'Unscored';
 
   return (
-    <div className="mb-8 grid grid-cols-[1fr_auto_1fr_auto] items-center gap-6 border-y border-[#e8e2d4] py-4">
-      <div className="flex items-center gap-3">
-        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#6b1f2a] shrink-0">
+    <div className="mb-8 grid grid-cols-[1fr_auto_1fr_auto] items-center gap-8 border-y border-[#e8e2d4] py-6">
+      <div className="flex flex-col gap-1.5">
+        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#6b1f2a]">
           AI · Verdict
         </div>
         {aiRecommendation ? (
-          <div className="flex items-center gap-2">
-            <span className={`inline-block font-mono text-[11px] uppercase tracking-[0.1em] font-semibold border rounded-sm px-2 py-1 ${VERDICT_STYLE[aiRecommendation]}`}>
+          <div className="flex items-center gap-3">
+            <span className={`inline-block font-mono text-[13px] uppercase tracking-[0.1em] font-semibold border rounded-sm px-3 py-1.5 ${VERDICT_STYLE[aiRecommendation]}`}>
               {aiRecommendation}
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#6b6358]">
+            <span className="font-mono text-[12px] uppercase tracking-[0.08em] text-[#6b6358]">
               {fitText}
             </span>
           </div>
         ) : (
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#908874] italic">
+          <span className="font-mono text-[12px] uppercase tracking-[0.1em] text-[#908874] italic">
             Not yet scored
           </span>
         )}
       </div>
 
-      <ArrowRight className="w-4 h-4 text-[#d4cec0]" />
+      <ArrowRight className="w-5 h-5 text-[#d4cec0]" />
 
-      <div className="flex items-center gap-3">
-        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#1a1816] shrink-0">
+      <div className="flex flex-col gap-1.5">
+        <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-[#1a1816]">
           Your · Status
         </div>
-        <span className={`inline-block font-mono text-[11px] uppercase tracking-[0.1em] font-semibold border rounded-sm px-2 py-1 ${STATUS_STYLE[humanStatus]}`}>
+        <span className={`inline-block font-mono text-[13px] uppercase tracking-[0.1em] font-semibold border rounded-sm px-3 py-1.5 ${STATUS_STYLE[humanStatus]}`}>
           {humanStatus}
         </span>
       </div>
 
-      <div className="shrink-0">
+      <div className="shrink-0 self-end pb-0.5">
         {overridden ? (
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] font-semibold border border-[#1a1816] bg-[#1a1816] text-[#faf7f2] rounded-sm px-2 py-1">
+          <span className="font-mono text-[10px] uppercase tracking-[0.1em] font-semibold border border-[#1a1816] bg-[#1a1816] text-[#faf7f2] rounded-sm px-2.5 py-1.5">
             Override
           </span>
         ) : (
           <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#908874] italic">
-            No override
+            Aligned
           </span>
         )}
       </div>

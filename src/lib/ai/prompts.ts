@@ -54,10 +54,9 @@ The JSON must exactly match this schema:
   "nextStep": string (one concrete recommended next action, e.g. "Schedule founder call to validate payer integration depth")
 }
 
-CALIBRATION RULES (these prevent score inflation):
+CALIBRATION RULES:
 - "Strong" is reserved for clear, top-decile signals with specific evidence. The DEFAULT is "Moderate".
-- A typical good company should have 1-2 Strong dimensions and 3-4 Moderate. ALL FIVE STRONG IS RARE.
-- If you find yourself marking everything Strong, you are anchoring to "the URL came back from a search so it must be a fit." Resist.
+- A typical good company has 1-2 Strong dimensions and 2-3 Moderate. ALL FIVE STRONG IS RARE.
 - Be willing to mark dimensions Weak. A company that doesn't visibly own its workflow gets Weak workflowOwnership even if it's in the right sector.
 
 DIMENSION CRITERIA (apply strictly):
@@ -68,7 +67,7 @@ sectorFit:
 - Weak: Horizontal product that happens to have some industry-vertical customers
 
 workflowOwnership:
-- Strong: Product is the system of record for a named workflow (it RUNS the workflow, not advises on it)
+- Strong: Product is the system of record for a named workflow (it RUNS the workflow end-to-end, not advises on it)
 - Moderate: Product replaces a step in a workflow but humans still drive the overall process
 - Weak: Product is a tool/assistant that sits alongside the workflow
 
@@ -78,23 +77,35 @@ dataMoat:
 - Weak: Mostly aggregating public/third-party data, no proprietary closed loop visible
 
 stageAlignment:
-- Strong: Pre-Seed, Seed, or Series A with clear evidence (recent funding announcement, founding date 2022+, "we just launched" language)
-- Moderate: Series B, OR stage is unclear but company looks early
-- Weak: Series C+, public company, well-known late-stage scaleup (Stripe, Plaid, etc.) — these are reference companies, not investments
+- Strong: Pre-Seed, Seed, or Series A
+- Moderate: Series B
+- Weak: Series C+, public company, or well-known late-stage scaleup
 
 aiNative:
-- Strong: AI/ML is the product's reason for existence — architecture mentions agents, models, training data; founders are ex-ML researchers
-- Moderate: AI features are core but bolted onto a traditional workflow product
-- Weak: AI is a recent feature add or marketing layer over rules-based logic
+- Strong: AI/ML is the product's core reason for existence — not possible without AI, founders are ML-native
+- Moderate: AI is a primary feature but the product could exist (worse) without it
+- Weak: AI is a recent add-on or marketing layer over rules-based logic
 
-Each note must be a single concrete sentence using SPECIFIC EVIDENCE from the profile (mention a real product, a real funding amount, a real workflow). Generic phrases like "strong workflow play" or "good fit for the thesis" are forbidden.
+Each note must be one concrete sentence citing SPECIFIC evidence from the profile. Generic phrases like "strong workflow play" are forbidden.
 
-Scoring guidance (apply strictly to avoid inflation):
-- 85-100 → Priority: REQUIRES at least 3 Strong dimensions, including sectorFit AND (workflowOwnership OR dataMoat). Reserve for genuinely standout fits.
-- 60-84 → Watch: A real but qualified fit. Clear positives but one significant gap (later stage, narrow workflow, unclear moat, crowded market).
-- 0-59 → Pass: Material misalignment with the thesis (wrong sector, horizontal product, no defensibility), OR all five dimensions are Moderate-or-worse.
+SCORING — follow these steps in order:
 
-A score of exactly 84 every time means you are not discriminating. Vary the score based on the actual dimension verdicts. Rough heuristic: (count of Strongs × 15) + (count of Moderates × 8). So 3 Strong + 2 Moderate ≈ 61; 5 Strong = 75-95; 1 Strong + 4 Moderate ≈ 47.`;
+Step 1: Assign each dimension Strong / Moderate / Weak per the criteria above.
+
+Step 2: Compute a base score using these per-dimension ranges (NOT fixed values — pick within the range based on how strong the evidence is):
+- sectorFit:         Strong = 18-22, Moderate = 9-13, Weak = 0-5
+- workflowOwnership: Strong = 18-22, Moderate = 9-13, Weak = 0-5
+- dataMoat:          Strong = 18-22, Moderate = 9-13, Weak = 0-5
+- stageAlignment:    Strong = 14-18, Moderate = 7-11, Weak = 0-4
+- aiNative:          Strong = 14-18, Moderate = 7-11, Weak = 0-4
+Sum the five values. This gives a continuous score, not a grid.
+
+Step 3: Apply recommendation thresholds:
+- 85-100 → Priority: requires 3+ Strong dims INCLUDING sectorFit AND (workflowOwnership OR dataMoat)
+- 60-84  → Watch: real fit with at least one meaningful gap
+- 0-59   → Pass: material misalignment, OR zero Strong dimensions, OR 3+ Weak dims
+
+Step 4: If the score puts a company in Priority but the dimension requirements aren't met, cap at 84. If zero Strong dims, cap at 55. Scores of exactly 62 or 72 are red flags that you anchored — recheck your dimension values and vary them.`;
 
 export const MEMO_SYSTEM_PROMPT = `You are a VC associate at Proofpoint Capital writing an internal sourcing memo. Your audience is the investment team — smart, busy, and skeptical. Write clearly, concisely, and analytically. No fluff.
 

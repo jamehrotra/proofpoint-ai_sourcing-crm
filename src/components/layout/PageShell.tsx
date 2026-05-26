@@ -13,7 +13,7 @@ export function PageShell({ children, eyebrow, title, description, action, masth
   return (
     <main className="mx-auto max-w-7xl px-8 py-12">
       {hasHeader && (
-        <header className="flex items-end justify-between gap-8 pb-6 mb-10 border-b-2 border-[#1a1816]">
+        <header className="flex items-end justify-between gap-8 pb-8 mb-12 border-b-2 border-[#1a1816]">
           <div>
             {eyebrow && <div className="text-eyebrow text-[#6b1f2a] mb-2">{eyebrow}</div>}
             {title && (
@@ -22,7 +22,7 @@ export function PageShell({ children, eyebrow, title, description, action, masth
               </h1>
             )}
             {description && !masthead && (
-              <p className="mt-3 text-[14px] text-[#6b6358] max-w-2xl">{description}</p>
+              <p className="mt-4 text-[15px] text-[#6b6358] max-w-2xl leading-relaxed">{description}</p>
             )}
           </div>
           {(action || masthead) && (

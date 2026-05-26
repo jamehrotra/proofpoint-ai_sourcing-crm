@@ -9,7 +9,7 @@ import {
   updateCompanyStatus,
 } from '../../../../db/queries/companies';
 import { insertProfile, getProfileByCompanyId } from '../../../../db/queries/aiProfiles';
-import { upsertFit } from '../../../../db/queries/thesisFit';
+import { upsertFit, getFitByCompanyAndThesis } from '../../../../db/queries/thesisFit';
 import { CorpusConnector } from '../../../lib/connectors/seed';
 import { scoreThesisFit } from '../../../lib/ai/score';
 import { extractProfile } from '../../../lib/ai/extract';
@@ -269,6 +269,8 @@ async function runAnalyzeScan(input: { mode: 'analyze'; sector: string; workflow
   });
 }
 
+const SCORE_CONCURRENCY = 4;
+
 async function evaluateAndStore(
   sources: RawSourceResult[],
   thesisPrompt: string,
@@ -280,10 +282,20 @@ async function evaluateAndStore(
   let passedCount = 0;
   let processedCount = 0;
 
+  // Resolve company IDs and profiles synchronously (DB ops) before parallel scoring
+  type PreparedEntry = {
+    companyId: string;
+    profileForScoring: NonNullable<RawSourceResult['prewrittenProfile']>;
+    fitSourceUrls: string[];
+    name: string;
+  };
+
+  const prepared: PreparedEntry[] = [];
+
   for (const source of sources) {
     try {
       let companyId: string;
-      let profileForScoring;
+      let profileForScoring: NonNullable<RawSourceResult['prewrittenProfile']>;
 
       if (source.corpusCompanyId) {
         const existing = getCompanyByCorpusCompanyId(source.corpusCompanyId);
@@ -326,9 +338,6 @@ async function evaluateAndStore(
           profileForScoring = profile;
         }
       } else if (source.sourceUrl && getCompanyBySourceUrl(source.sourceUrl)) {
-        // Dedupe: company with this sourceUrl already exists. Reuse it and
-        // simply add a new thesis-fit (multi-fit feature). Profile is not
-        // overwritten — Score History card shows the evolution.
         const existing = getCompanyBySourceUrl(source.sourceUrl)!;
         companyId = existing.id;
         const existingProfile = getProfileByCompanyId(companyId);
@@ -344,7 +353,6 @@ async function evaluateAndStore(
             risks: JSON.parse(existingProfile.risks as string),
           };
         } else {
-          // Edge case: company exists but profile doesn't. Fall back to source profile.
           profileForScoring = source.prewrittenProfile!;
         }
       } else {
@@ -382,18 +390,64 @@ async function evaluateAndStore(
         profileForScoring = profile;
       }
 
-      const fitResult = await scoreThesisFit(profileForScoring, thesisPrompt);
-
-      // For corpus + analyze modes, source URLs reduce to whatever we have on the
-      // source row: corpus companies have a website, analyze-mode companies have
-      // either a URL (if the user pasted one) or no external sources at all.
       const fitSourceUrls: string[] = [];
       if (source.sourceUrl) fitSourceUrls.push(source.sourceUrl);
       else if (source.website) fitSourceUrls.push(source.website);
 
-      upsertFit({
+      prepared.push({ companyId, profileForScoring, fitSourceUrls, name: source.name });
+    } catch (err) {
+      const error = err as Error;
+      console.error(`Failed to prepare company ${source.name}:`, error.message);
+      warnings.push(`Could not prepare ${source.name}: ${error.message}`);
+    }
+  }
+
+  // Score in parallel batches to avoid serializing 20 Claude calls
+  for (let i = 0; i < prepared.length; i += SCORE_CONCURRENCY) {
+    const batch = prepared.slice(i, i + SCORE_CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(async (entry) => {
+        // Skip Claude if this company + thesis was already scored — return cached result
+        const cached = getFitByCompanyAndThesis(entry.companyId, thesisPrompt);
+        if (cached) {
+          console.log(`Cache hit for ${entry.name} — skipping Claude call`);
+          const fitResult = {
+            thesisFitScore: cached.fitScore,
+            recommendation: cached.recommendation as 'Priority' | 'Watch' | 'Pass',
+            rationale: cached.rationale,
+            keyRisks: JSON.parse(cached.keyRisks),
+            diligenceQuestions: JSON.parse(cached.diligenceQuestions),
+            nextStep: cached.nextStep,
+            dimensions: cached.dimensionsJson ? JSON.parse(cached.dimensionsJson) : null,
+          };
+          return { entry, fitResult, cached: true };
+        }
+
+        const fitResult = await scoreThesisFit(entry.profileForScoring, thesisPrompt).catch(async (firstErr) => {
+          const msg = (firstErr as Error).message;
+          const isRateLimit = msg.includes('429') || msg.includes('rate_limit');
+          const delay = isRateLimit ? 15000 : 2000;
+          console.warn(`Scoring retry for ${entry.name} in ${delay}ms:`, msg);
+          await new Promise((r) => setTimeout(r, delay));
+          return await scoreThesisFit(entry.profileForScoring, thesisPrompt);
+        });
+        return { entry, fitResult, cached: false };
+      })
+    );
+
+    for (const settled of results) {
+      if (settled.status === 'rejected') {
+        const err = settled.reason as Error;
+        console.error(`Failed to score company:`, err.message);
+        warnings.push(`Could not score a company: ${err.message}`);
+        continue;
+      }
+
+      const { entry, fitResult, cached } = settled.value;
+
+      if (!cached) upsertFit({
         id: nanoid(),
-        companyId,
+        companyId: entry.companyId,
         fitScore: fitResult.thesisFitScore,
         recommendation: fitResult.recommendation,
         rationale: fitResult.rationale,
@@ -403,10 +457,10 @@ async function evaluateAndStore(
         thesisPromptUsed: thesisPrompt,
         scoredAt: now,
         dimensionsJson: JSON.stringify(fitResult.dimensions),
-        sourceUrlsJson: JSON.stringify(fitSourceUrls),
+        sourceUrlsJson: JSON.stringify(entry.fitSourceUrls),
       });
 
-      updateCompanyStatus(companyId, 'New');
+      updateCompanyStatus(entry.companyId, 'New');
 
       if (fitResult.recommendation === 'Pass') {
         passedCount++;
@@ -414,10 +468,6 @@ async function evaluateAndStore(
         surfacedCount++;
       }
       processedCount++;
-    } catch (err) {
-      const error = err as Error;
-      console.error(`Failed to process company ${source.name}:`, error.message);
-      warnings.push(`Could not score ${source.name}: ${error.message}`);
     }
   }
 

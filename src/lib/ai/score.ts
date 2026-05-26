@@ -83,5 +83,39 @@ ${thesisPrompt}`;
     throw new Error(`Claude returned malformed thesis-fit data: ${result.error.message}`);
   }
 
-  return result.data;
+  return enforceRecommendation(result.data);
+}
+
+function enforceRecommendation(data: z.infer<typeof ThesisFitSchema>): z.infer<typeof ThesisFitSchema> {
+  const dims = Object.values(data.dimensions);
+  const strongCount = dims.filter((d) => d.verdict === 'Strong').length;
+  const weakCount = dims.filter((d) => d.verdict === 'Weak').length;
+
+  const hasSectorStrong = data.dimensions.sectorFit.verdict === 'Strong';
+  const hasWorkflowOrMoatStrong =
+    data.dimensions.workflowOwnership.verdict === 'Strong' ||
+    data.dimensions.dataMoat.verdict === 'Strong';
+
+  let recommendation = data.recommendation;
+  let score = data.thesisFitScore;
+
+  // Priority requires 3+ Strongs including sectorFit AND (workflowOwnership OR dataMoat)
+  if (recommendation === 'Priority' && !(strongCount >= 3 && hasSectorStrong && hasWorkflowOrMoatStrong)) {
+    recommendation = 'Watch';
+    score = Math.min(score, 84);
+  }
+
+  // Pass if no Strong dimensions at all, regardless of what Claude said
+  if (strongCount === 0) {
+    recommendation = 'Pass';
+    score = Math.min(score, 59);
+  }
+
+  // Heavy Weak count should pull toward Pass
+  if (weakCount >= 3 && recommendation === 'Watch') {
+    recommendation = 'Pass';
+    score = Math.min(score, 59);
+  }
+
+  return { ...data, recommendation, thesisFitScore: score };
 }

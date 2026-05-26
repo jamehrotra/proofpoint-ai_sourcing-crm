@@ -17,6 +17,13 @@ export interface ThesisFitRow {
   sourceUrlsJson: string | null;
 }
 
+export function getFitByCompanyAndThesis(companyId: string, thesisPrompt: string): ThesisFitRow | undefined {
+  const db = getDb();
+  return db
+    .prepare('SELECT * FROM thesis_fit_analyses WHERE companyId = ? AND thesisPromptUsed = ? LIMIT 1')
+    .get(companyId, thesisPrompt) as ThesisFitRow | undefined;
+}
+
 export function getFitByCompanyId(companyId: string): ThesisFitRow | undefined {
   const db = getDb();
   return db
