@@ -2,8 +2,6 @@
 
 An AI-powered sourcing cockpit for Proofpoint Capital — a VC firm investing in early-stage Vertical AI companies. Signal Scout lets an analyst surface candidate companies via three scan modes, score them against a live investment thesis using Claude, review structured AI profiles and thesis-fit analyses, override AI recommendations, capture journaled notes, and track follow-up tasks across the pipeline.
 
-Built for the Proofpoint Capital AI/Technology Internship assignment.
-
 ---
 
 ## Quick Start
